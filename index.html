@@ -37,10 +37,13 @@
         </div>
       </div>
 
-      <!-- 01 驱动单元 -->
+     <!-- 01 驱动单元与复位 -->
       <div class="panel-section">
         <div class="panel-title" id="sec1Title">01 / 驱动单元</div>
-        <button id="motorBtn" class="btn-toggle active">电机状态: 已接入驱动</button>
+        <div style="display: flex; gap: 8px;">
+          <button id="motorBtn" class="btn-toggle active" style="flex: 1;">电机状态: 已接入驱动</button>
+          <button id="resetBtn" class="btn-toggle" style="width: 70px; background: #13171b; color: #94a3b8;">复位</button>
+        </div>
       </div>
 
       <!-- 02 运动学调节 -->
