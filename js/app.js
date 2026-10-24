@@ -28,6 +28,7 @@ const presets = {
   crankSlider: window.CrankSliderMechanism,
   fourBar: window.FourBarMechanism,
   cam: window.CamFollowerMechanism
+  gear: window.GearSystemMechanism
 };
 
 let activePresetKey = 'crankSlider';
@@ -35,6 +36,11 @@ let activeInstance = null;
 let mouseConstraint = null;
 
 function loadMechanism(key) {
+  // 如果上一套机构有专有事件监听，先卸载清理
+  if (activeInstance && activeInstance.destroy) {
+    activeInstance.destroy();
+  }
+
   // 清理上一套机构
   Composite.clear(engine.world, false);
   activePresetKey = key;
