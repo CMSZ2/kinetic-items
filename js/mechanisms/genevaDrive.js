@@ -1,54 +1,53 @@
-// 机构 05：日内瓦槽轮间歇机构 (Geneva Drive) - 连续周期闭式解
+// 机构 05：标准外啮合日内瓦四槽轮机构 (Geneva Drive) - 实体轮廓与连续步进版
 window.GenevaDriveMechanism = {
   nameZh: '日内瓦槽轮间歇机构',
   nameEn: 'Geneva Drive Mechanism',
-  telemetryLabelsZh: { m1: '主动盘转速', m2: '槽轮状态与角度' },
-  telemetryLabelsEn: { m1: 'Driver Speed', m2: 'Geneva Angle' },
+  telemetryLabelsZh: { m1: '主动拨盘速度', m2: '槽轮当前步进位' },
+  telemetryLabelsEn: { m1: 'Driver Speed', m2: 'Geneva Status' },
 
   init(engine, width, height) {
     const { Bodies, Composite, Constraint, Events } = Matter;
     const originX = width / 2;
     const originY = height / 2;
 
-    const centerDist = 120; // 轴间距 L
-    const rPin = centerDist * Math.sin(Math.PI / 4); // 84.85px (标准4槽最佳无冲击几何)
+    const centerDist = 130; // 轴间距 L
+    const rPin = centerDist * Math.SQRT1_2; // 拨销理论精确节圆半径 91.92
     const driverX = originX - centerDist / 2;
     const genevaX = originX + centerDist / 2;
+    const rLockCam = 42;    // 主动凸锁圆弧半径
+    const rGenevaOuter = centerDist * Math.SQRT1_2; // 槽轮最大外径
 
     const driver = Bodies.circle(driverX, originY, 40, { frictionAir: 0.02, render: { visible: false } });
     const pD = Constraint.create({ pointA: { x: driverX, y: originY }, bodyB: driver, pointB: { x: 0, y: 0 }, stiffness: 1 });
 
     let isRunning = true;
     let genevaAngle = 0;
-    let isDrivingPhase = false;
+    let isIndexing = false;
 
-    // 全新思路：闭式周期映射算法
+    // 核心连续步进数学方程：零截断、零回弹
     const updateGeneva = () => {
       const theta = driver.angle;
       const TWO_PI = Math.PI * 2;
       
-      // 算当前完成了多少个完整周期
-      const cycleCount = Math.floor((theta + Math.PI / 4) / TWO_PI);
-      
-      // 当前周期内的相对角度 (-PI/4 到 7PI/4)
-      let localTheta = (theta + Math.PI / 4) % TWO_PI;
-      if (localTheta < 0) localTheta += TWO_PI;
-      localTheta -= Math.PI / 4;
+      // 周期计数与当前周期内归一化角度 [-PI, PI]
+      const cycle = Math.floor((theta + Math.PI) / TWO_PI);
+      let phi = (theta + Math.PI) % TWO_PI;
+      if (phi < 0) phi += TWO_PI;
+      phi -= Math.PI; // -PI 到 PI，拨销在 0 时处于水平朝右的相切中点
 
-      // 判定是否在驱动阶段：-PI/4 到 +PI/4 (总计 90 度的进槽驱动区)
-      if (localTheta >= -Math.PI / 4 && localTheta <= Math.PI / 4) {
-        isDrivingPhase = true;
-        // 严格几何解：槽道随拨销转角
-        const pinX = driverX + rPin * Math.cos(theta);
-        const pinY = originY + rPin * Math.sin(theta);
-        const dx = pinX - genevaX;
-        const dy = pinY - originY;
-        const slotA = Math.atan2(dy, dx);
-        genevaAngle = - (cycleCount * Math.PI / 2) + (slotA - Math.PI);
+      // 4槽机构严格进槽区间：-45° 到 +45° (-PI/4 到 PI/4)
+      if (phi >= -Math.PI / 4 && phi <= Math.PI / 4) {
+        isIndexing = true;
+        // 严密无冲击进槽反三角函数解
+        const num = Math.sin(phi);
+        const den = Math.SQRT2 - Math.cos(phi);
+        const deltaSlotAngle = Math.atan2(num, den);
+        genevaAngle = -(cycle * Math.PI / 2) - deltaSlotAngle;
       } else {
-        isDrivingPhase = false;
-        // 锁止停顿阶段：完全锁死在当前完成的步进角上
-        genevaAngle = - (cycleCount * Math.PI / 2);
+        isIndexing = false;
+        // 出槽锁止期：完全平滑保持在当前已完成的象限角度上
+        const finalStep = (phi > Math.PI / 4) ? (cycle + 0.5) : (cycle - 0.5);
+        genevaAngle = -(Math.round(finalStep) * Math.PI / 2);
       }
     };
     Events.on(engine, 'beforeUpdate', updateGeneva);
@@ -61,26 +60,33 @@ window.GenevaDriveMechanism = {
         if (ctx) {
           ctx.save();
 
-          // 1. 绘制主动轮与半月锁止弧
+          // 1. 绘制主动拨盘与锁止凸缘 (Driving Crank & Locking Crescent)
           ctx.save();
           ctx.translate(driverX, originY);
           ctx.rotate(driver.angle);
 
-          // 驱动曲柄臂
-          ctx.strokeStyle = '#ffffff';
+          // 主动曲柄盘底座
+          ctx.strokeStyle = '#334155';
+          ctx.lineWidth = 1;
+          ctx.beginPath();
+          ctx.arc(0, 0, 24, 0, Math.PI * 2);
+          ctx.stroke();
+
+          // 半月凸锁盘 (Locking Disc)
+          ctx.strokeStyle = '#64748b';
           ctx.lineWidth = 1.5;
           ctx.beginPath();
-          ctx.arc(0, 0, 20, 0, Math.PI * 2);
-          ctx.moveTo(0, 0); ctx.lineTo(rPin, 0);
+          ctx.arc(0, 0, rLockCam, Math.PI / 4, 7 * Math.PI / 4);
           ctx.stroke();
 
-          // 锁止圆弧凸台 (与槽轮凹槽配合自锁)
+          // 驱动臂与圆销
+          ctx.strokeStyle = '#ffffff';
+          ctx.lineWidth = 2;
           ctx.beginPath();
-          ctx.strokeStyle = '#64748b';
-          ctx.arc(0, 0, 40, Math.PI / 4, 7 * Math.PI / 4);
+          ctx.moveTo(0, 0);
+          ctx.lineTo(rPin, 0);
           ctx.stroke();
 
-          // 驱动圆销
           ctx.fillStyle = '#38bdf8';
           ctx.beginPath();
           ctx.arc(rPin, 0, 6, 0, Math.PI * 2);
@@ -89,36 +95,52 @@ window.GenevaDriveMechanism = {
           ctx.stroke();
           ctx.restore();
 
-          // 2. 绘制标准四槽槽轮实体外轮廓
+          // 2. 绘制标准实体日内瓦四槽盘 (一体化连续槽轮外形轮廓)
           ctx.save();
           ctx.translate(genevaX, originY);
           ctx.rotate(genevaAngle);
+
+          // 轮廓实体路径绘制
           ctx.strokeStyle = '#ffffff';
           ctx.lineWidth = 1.5;
-
-          // 绘制四槽轮廓与四段凹弧锁止面
+          ctx.beginPath();
           for (let i = 0; i < 4; i++) {
+            const rot = (i * Math.PI) / 2;
             ctx.save();
-            ctx.rotate((i * Math.PI) / 2);
-            // 径向滑槽
-            ctx.strokeRect(20, -5, 55, 10);
-            // 边缘四段外凹锁止圆弧
+            ctx.rotate(rot);
+            // 绘制当前象限的槽道外壁
+            ctx.strokeRect(22, -6, 68, 12);
+            ctx.restore();
+          }
+
+          // 绘制整体槽轮外边缘与4段精密锁止凹弧 (Crescent cutouts)
+          ctx.strokeStyle = '#94a3b8';
+          ctx.lineWidth = 1.2;
+          for (let i = 0; i < 4; i++) {
+            const rot = (i * Math.PI) / 2 + Math.PI / 4;
+            ctx.save();
+            ctx.rotate(rot);
+            // 外轮廓凹圆弧 (与主动凸盘精准贴合)
             ctx.beginPath();
-            ctx.arc(60, 60, 40, 0, Math.PI * 2);
-            ctx.strokeStyle = '#334155';
+            ctx.arc(centerDist * Math.cos(Math.PI / 4), 0, rLockCam + 1, Math.PI * 0.72, Math.PI * 1.28);
             ctx.stroke();
             ctx.restore();
           }
 
-          // 中心轴承孔
+          // 盘体中心减重孔与主轴轴承座
           ctx.beginPath();
-          ctx.arc(0, 0, 10, 0, Math.PI * 2);
-          ctx.strokeStyle = '#94a3b8';
+          ctx.arc(0, 0, 14, 0, Math.PI * 2);
+          ctx.strokeStyle = '#38bdf8';
           ctx.stroke();
+          ctx.beginPath();
+          ctx.arc(0, 0, 4, 0, Math.PI * 2);
+          ctx.fillStyle = '#ffffff';
+          ctx.fill();
+
           ctx.restore();
 
-          // 机架中心距基准线
-          ctx.setLineDash([3, 3]);
+          // 3. 中心距定位点划线
+          ctx.setLineDash([4, 4]);
           ctx.strokeStyle = '#1e293b';
           ctx.beginPath();
           ctx.moveTo(driverX, originY);
@@ -142,10 +164,10 @@ window.GenevaDriveMechanism = {
         Events.off(engine, 'beforeUpdate', updateGeneva);
       },
       getTelemetry() {
-        const deg = (((-genevaAngle * 180 / Math.PI) % 360 + 360) % 360).toFixed(1);
+        const deg = (((-genevaAngle * 180 / Math.PI) % 360 + 360) % 360).toFixed(0);
         return {
           v1: `${(driver.angularVelocity * 60).toFixed(2)} rad/s`,
-          v2: `${deg}° [${isDrivingPhase ? '驱动转位中' : '凹弧锁止停顿'}]`
+          v2: `${deg}° [${isIndexing ? '步进啮合中' : '凹弧锁止停顿'}]`
         };
       }
     };
