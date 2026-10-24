@@ -1,11 +1,11 @@
-// 全局调度总成：管理 9 大机构生命周期、视口自适应、遥测读数与双语系统
+// 全局调度总成：集成手摇曲柄把手 (Manual Crank Handle) 与 9 大机构
 const { Engine, Render, Runner, Composite, Mouse, MouseConstraint, Body } = Matter;
 
 const viewport = document.getElementById('viewport');
 let width = viewport.clientWidth;
 let height = viewport.clientHeight;
 
-// 1. 初始化引擎与渲染器
+// 1. 初始化引擎与渲染
 const engine = Engine.create();
 engine.gravity.y = 0;
 
@@ -23,7 +23,7 @@ Render.run(render);
 const runner = Runner.create();
 Runner.run(runner, engine);
 
-// 2. 机构总库字典 (9 大拓扑完整注册)
+// 2. 机构总库字典
 const presets = {
   crankSlider: window.CrankSliderMechanism,
   fourBar: window.FourBarMechanism,
@@ -41,25 +41,15 @@ let activeInstance = null;
 let mouseConstraint = null;
 
 function loadMechanism(key) {
-  if (!presets[key]) {
-    console.warn('Mechanism not registered:', key);
-    return;
-  }
+  if (!presets[key]) return;
 
-  // 卸载上一机构的动画与事件
   if (activeInstance && activeInstance.destroy) {
-    try {
-      activeInstance.destroy();
-    } catch (e) {
-      console.error(e);
-    }
+    try { activeInstance.destroy(); } catch (e) { console.error(e); }
   }
 
-  // 清空刚体世界
   Composite.clear(engine.world, false);
   activePresetKey = key;
 
-  // 重新绑定鼠标约束
   const mouse = Mouse.create(render.canvas);
   mouseConstraint = MouseConstraint.create(engine, {
     mouse: mouse,
@@ -68,10 +58,8 @@ function loadMechanism(key) {
   Composite.add(engine.world, mouseConstraint);
   render.mouse = mouse;
 
-  // 初始化对应机构
   activeInstance = presets[key].init(engine, width, height);
 
-  // 同步当前阻尼值
   const frictionSlider = document.getElementById('frictionSlider');
   if (frictionSlider && activeInstance && activeInstance.bodiesToFriction) {
     const f = parseFloat(frictionSlider.value);
@@ -81,36 +69,149 @@ function loadMechanism(key) {
   updateLanguage(currentLang);
 }
 
-// 3. 动力驱动与遥测主循环
+// 3. 动力系统：电机驱动 VS 工业手摇把手交互 (Manual Crank)
 let isMotorOn = true;
 let targetRpm = 30;
+let isDraggingHandle = false;
+let manualAngVel = 0;
+let lastMouseAngle = null;
+let lastMouseTime = performance.now();
 
+// 手摇手柄鼠标事件监听
+viewport.addEventListener('mousedown', (e) => {
+  if (isMotorOn || !activeInstance || !activeInstance.driveBody) return;
+  const rect = viewport.getBoundingClientRect();
+  const mx = e.clientX - rect.left;
+  const my = e.clientY - rect.top;
+  const db = activeInstance.driveBody;
+
+  // 判断是否点中驱动轮把手外圈 (把手半径 55px 处)
+  const dist = Math.hypot(mx - db.position.x, my - db.position.y);
+  if (dist >= 25 && dist <= 85) {
+    isDraggingHandle = true;
+    lastMouseAngle = Math.atan2(my - db.position.y, mx - db.position.x);
+    lastMouseTime = performance.now();
+  }
+});
+
+window.addEventListener('mousemove', (e) => {
+  if (!isDraggingHandle || isMotorOn || !activeInstance || !activeInstance.driveBody) return;
+  const rect = viewport.getBoundingClientRect();
+  const mx = e.clientX - rect.left;
+  const my = e.clientY - rect.top;
+  const db = activeInstance.driveBody;
+
+  const curAngle = Math.atan2(my - db.position.y, mx - db.position.x);
+  const now = performance.now();
+  const dt = (now - lastMouseTime) / 1000;
+
+  if (dt > 0.005) {
+    let dTheta = curAngle - lastMouseAngle;
+    if (dTheta > Math.PI) dTheta -= Math.PI * 2;
+    if (dTheta < -Math.PI) dTheta += Math.PI * 2;
+
+    manualAngVel = dTheta / dt;
+    Body.setAngle(db, db.angle + dTheta);
+    Body.setAngularVelocity(db, manualAngVel / 60);
+
+    lastMouseAngle = curAngle;
+    lastMouseTime = now;
+  }
+});
+
+window.addEventListener('mouseup', () => {
+  isDraggingHandle = false;
+});
+
+// 主运动循环与遥测更新
 Matter.Events.on(engine, 'beforeUpdate', () => {
   if (isMotorOn && activeInstance && activeInstance.driveBody) {
     const targetAngVel = (targetRpm * 2 * Math.PI) / (60 * 60);
     Body.setAngularVelocity(activeInstance.driveBody, targetAngVel);
   }
 
+  // 阻尼让手摇平缓衰减
+  if (!isMotorOn && !isDraggingHandle) {
+    manualAngVel *= 0.92;
+  }
+
   if (activeInstance && activeInstance.getTelemetry) {
     const data = activeInstance.getTelemetry();
     const angEl = document.getElementById('angVel');
     const dispEl = document.getElementById('dispVal');
-    if (angEl && data.v1) angEl.innerText = data.v1;
+
+    if (angEl) {
+      if (isMotorOn) {
+        angEl.innerText = data.v1;
+      } else {
+        const manRpm = Math.abs(manualAngVel * 60 / (2 * Math.PI)).toFixed(1);
+        angEl.innerText = `${manRpm} RPM (手摇)`;
+      }
+    }
     if (dispEl && data.v2) dispEl.innerText = data.v2;
   }
 });
 
-// 4. 国际化字典
+// 手摇把手视觉叠加层 (在空挡模式下呈现工科把手)
+const canvas = document.querySelector('#viewport canvas');
+function renderManualHandle() {
+  if (!isMotorOn && activeInstance && activeInstance.driveBody && canvas) {
+    const ctx = canvas.getContext('2d');
+    if (ctx) {
+      const db = activeInstance.driveBody;
+      const hRadius = 55;
+      const hx = db.position.x + hRadius * Math.cos(db.angle);
+      const hy = db.position.y + hRadius * Math.sin(db.angle);
+
+      ctx.save();
+      // 把手旋转引导虚线圈
+      ctx.setLineDash([3, 3]);
+      ctx.strokeStyle = '#334155';
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.arc(db.position.x, db.position.y, hRadius, 0, Math.PI * 2);
+      ctx.stroke();
+
+      // 把手金属曲柄与握把
+      ctx.setLineDash([]);
+      ctx.strokeStyle = '#38bdf8';
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.moveTo(db.position.x, db.position.y);
+      ctx.lineTo(hx, hy);
+      ctx.stroke();
+
+      // 旋钮握把 (Knob)
+      ctx.fillStyle = isDraggingHandle ? '#ffffff' : '#38bdf8';
+      ctx.beginPath();
+      ctx.arc(hx, hy, 8, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.strokeStyle = '#ffffff';
+      ctx.stroke();
+
+      // 提示标签
+      ctx.fillStyle = '#64748b';
+      ctx.font = '10px ui-monospace, monospace';
+      ctx.fillText('CRANK HANDLE [DRAG TO ROTATE]', db.position.x - 70, db.position.y + hRadius + 22);
+
+      ctx.restore();
+    }
+  }
+  requestAnimationFrame(renderManualHandle);
+}
+requestAnimationFrame(renderManualHandle);
+
+// 4. 国际化与事件
 let currentLang = 'zh';
 const dict = {
   zh: {
     subTitle: '机械动力学仿真沙盒',
-    statusMotorOn: '状态: 动力源运行中 / 支持鼠标拖拽',
-    statusMotorOff: '状态: 手动模式 / 按住构件拖动',
+    statusMotorOn: '状态: 电机驱动中 / 可调节 RPM',
+    statusMotorOff: '状态: 手动空挡 / 请抓取蓝色手柄摇动',
     sec0: '00 / 机构拓扑库',
     sec1: '01 / 驱动单元',
     motorOn: '电机状态: 已接入驱动',
-    motorOff: '电机状态: 空挡 (手动拨动)',
+    motorOff: '电机状态: 空挡 (手柄摇动)',
     resetBtn: '复位',
     sec2: '02 / 运动学调节',
     rpm: '主动轮转速',
@@ -120,12 +221,12 @@ const dict = {
   },
   en: {
     subTitle: 'RIGID SIMULATION SUITE',
-    statusMotorOn: 'SYS: EQUILIBRIUM ACTIVE / DRAG TO INTERACT',
-    statusMotorOff: 'SYS: MANUAL MODE / DRAG COMPONENT',
+    statusMotorOn: 'SYS: MOTOR ENGAGED / TUNE RPM',
+    statusMotorOff: 'SYS: MANUAL IDLE / ROTATE BLUE HANDLE',
     sec0: '00 / MECHANISM ARCHIVE',
     sec1: '01 / DRIVE UNIT',
     motorOn: 'MOTOR: ENGAGED',
-    motorOff: 'MOTOR: DISENGAGED (MANUAL)',
+    motorOff: 'MOTOR: DISENGAGED (MANUAL CRANK)',
     resetBtn: 'RESET',
     sec2: '02 / KINEMATICS REGULATION',
     rpm: 'DRIVE SPEED',
@@ -158,7 +259,7 @@ function updateLanguage(lang) {
   setTxt('footerCore', t.footerCore);
 
   if (p) {
-    setTxt('angVelLabel', lang === 'zh' ? p.telemetryLabelsZh?.m1 : p.telemetryLabelsEn?.m1);
+    setTxt('angVelLabel', isMotorOn ? (lang === 'zh' ? p.telemetryLabelsZh?.m1 : p.telemetryLabelsEn?.m1) : (lang === 'zh' ? '手动输入转速' : 'Manual Crank Vel'));
     setTxt('dispLabel', lang === 'zh' ? p.telemetryLabelsZh?.m2 : p.telemetryLabelsEn?.m2);
     setTxt('footerType', lang === 'zh' ? `机构形式: ${p.nameZh}` : `TYPE: ${p.nameEn}`);
   }
@@ -169,20 +270,15 @@ function updateLanguage(lang) {
   if (enBtn) enBtn.classList.toggle('active', lang === 'en');
 }
 
-// 5. 事件安全绑定
 const safeListen = (id, event, handler) => {
   const el = document.getElementById(id);
   if (el) el.addEventListener(event, handler);
 };
 
-// 下拉选单切换
 safeListen('mechanismSelect', 'change', (e) => loadMechanism(e.target.value));
-
-// 双语切换
 safeListen('langZh', 'click', () => updateLanguage('zh'));
 safeListen('langEn', 'click', () => updateLanguage('en'));
 
-// 动力与复位
 safeListen('motorBtn', 'click', () => {
   isMotorOn = !isMotorOn;
   const mBtn = document.getElementById('motorBtn');
@@ -190,11 +286,8 @@ safeListen('motorBtn', 'click', () => {
   updateLanguage(currentLang);
 });
 
-safeListen('resetBtn', 'click', () => {
-  loadMechanism(activePresetKey);
-});
+safeListen('resetBtn', 'click', () => loadMechanism(activePresetKey));
 
-// 滑块
 safeListen('rpmSlider', 'input', (e) => {
   targetRpm = parseFloat(e.target.value);
   const rpmEl = document.getElementById('rpmVal');
@@ -210,7 +303,6 @@ safeListen('frictionSlider', 'input', (e) => {
   if (fEl) fEl.innerText = f.toFixed(3);
 });
 
-// 窗口 Resize
 window.addEventListener('resize', () => {
   width = viewport.clientWidth;
   height = viewport.clientHeight;
@@ -219,5 +311,4 @@ window.addEventListener('resize', () => {
   loadMechanism(activePresetKey);
 });
 
-// 默认加载
 loadMechanism('crankSlider');
