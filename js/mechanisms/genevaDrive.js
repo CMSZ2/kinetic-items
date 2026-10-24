@@ -1,61 +1,62 @@
-// 机构 05：标准外啮合日内瓦四槽轮间歇机构 (Geneva Drive) - 经典工程实体版
+// 机构 05：日内瓦四槽轮间歇机构 (Geneva Drive) - 严格步进积分版
 window.GenevaDriveMechanism = {
   nameZh: '日内瓦槽轮间歇机构',
   nameEn: 'Geneva Drive Mechanism',
-  telemetryLabelsZh: { m1: '主动拨盘角速度', m2: '槽轮瞬时步进角' },
-  telemetryLabelsEn: { m1: 'Driver Ang Vel', m2: 'Geneva Index Ang' },
+  telemetryLabelsZh: { m1: '主动盘角速度', m2: '槽轮累积转角' },
+  telemetryLabelsEn: { m1: 'Driver Ang Vel', m2: 'Geneva Total Angle' },
 
   init(engine, width, height) {
     const { Bodies, Composite, Constraint, Events } = Matter;
     const originX = width / 2;
     const originY = height / 2;
 
-    const centerDist = 130; // 严格中心距
-    const rDriver = centerDist * Math.sin(Math.PI / 4); // 91.92
-    const rPin = 62;        // 拨销回转半径
-    const rGeneva = Math.sqrt(centerDist * centerDist - rPin * rPin); // 114.2 槽轮外径
+    const centerDist = 120; // 严密中心距
+    const rPin = 60;        // 拨销半径 (centerDist * sin(pi/4) = 84.85，调整为紧凑型)
     const driverX = originX - centerDist / 2;
     const genevaX = originX + centerDist / 2;
 
-    // 承载鼠标交互的刚体
     const driver = Bodies.circle(driverX, originY, 40, { frictionAir: 0.02, render: { visible: false } });
-    const geneva = Bodies.circle(genevaX, originY, 50, { frictionAir: 0.02, render: { visible: false } });
-
     const pD = Constraint.create({ pointA: { x: driverX, y: originY }, bodyB: driver, pointB: { x: 0, y: 0 }, stiffness: 1 });
-    const pG = Constraint.create({ pointA: { x: genevaX, y: originY }, bodyB: geneva, pointB: { x: 0, y: 0 }, stiffness: 1 });
 
     let isRunning = true;
-    let genevaAngle = 0;
-    let lockedStep = 0;
+    let genevaAngle = 0; // 槽轮绝对角度
+    let prevDriverAngle = driver.angle;
+    let stepIndex = 0;   // 已经走过的 90 度步数
 
-    // 严密日内瓦运动学：拨销进槽与出槽锁定
+    // 核心步进解算：追踪拨销过象限
     const updateGeneva = () => {
-      // 归一化主动盘角度 (-PI 到 PI)
-      let theta = driver.angle % (Math.PI * 2);
-      if (theta < -Math.PI) theta += Math.PI * 2;
-      if (theta > Math.PI) theta -= Math.PI * 2;
+      const curAngle = driver.angle;
+      const dTheta = curAngle - prevDriverAngle;
+      prevDriverAngle = curAngle;
 
-      const enterA = -Math.PI / 4;
-      const exitA = Math.PI / 4;
+      // 拨销瞬时坐标
+      const pinX = driverX + rPin * Math.cos(curAngle);
+      const pinY = originY + rPin * Math.sin(curAngle);
 
-      if (theta >= enterA && theta <= exitA) {
-        // 拨销进入槽内推动转动
-        const pinX = driverX + rPin * Math.cos(theta);
-        const pinY = originY + rPin * Math.sin(theta);
+      // 判定拨销是否处于右侧进入槽轮有效推动区 (-45° 到 +45°)
+      let localA = curAngle % (Math.PI * 2);
+      if (localA < 0) localA += Math.PI * 2;
+      
+      const inZone = (localA >= 7 * Math.PI / 4 || localA <= Math.PI / 4);
+
+      if (inZone) {
+        // 在槽内：槽道中心线与拨销实时对准
         const dx = pinX - genevaX;
         const dy = pinY - originY;
-        genevaAngle = Math.atan2(dy, dx) - (lockedStep * Math.PI / 2);
+        const currentSlotA = Math.atan2(dy, dx);
+        
+        // 平滑跟踪槽轮姿态
+        genevaAngle = currentSlotA - (stepIndex * Math.PI / 2);
       } else {
-        // 锁止期：凹弧紧贴自锁
-        if (theta > exitA) {
-          lockedStep = Math.floor((driver.angle + Math.PI / 4) / (Math.PI * 2));
+        // 出槽锁止期：更新完成的步数
+        if (localA > Math.PI / 4 && localA < Math.PI / 2 && dTheta > 0) {
+          stepIndex = Math.round(curAngle / (Math.PI * 2));
         }
-        genevaAngle = - (lockedStep * Math.PI / 2);
+        genevaAngle = - (stepIndex * Math.PI / 2) + Math.PI;
       }
     };
     Events.on(engine, 'beforeUpdate', updateGeneva);
 
-    // 绘制标准日内瓦实体工程图纸
     const canvas = document.querySelector('#viewport canvas');
     function draw() {
       if (!isRunning) return;
@@ -64,25 +65,24 @@ window.GenevaDriveMechanism = {
         if (ctx) {
           ctx.save();
 
-          // 1. 绘制主动轮与半月锁止凸台
+          // 1. 绘制主动拨盘
           ctx.save();
           ctx.translate(driverX, originY);
           ctx.rotate(driver.angle);
-          // 主动臂
           ctx.strokeStyle = '#ffffff';
-          ctx.lineWidth = 1.5;
+          ctx.lineWidth = 1.2;
           ctx.beginPath();
-          ctx.arc(0, 0, 20, 0, Math.PI * 2);
+          ctx.arc(0, 0, 22, 0, Math.PI * 2);
           ctx.moveTo(0, 0); ctx.lineTo(rPin, 0);
           ctx.stroke();
 
-          // 锁止凸缘 (Crescent Cam)
+          // 驱动凸缘锁止弧
           ctx.beginPath();
-          ctx.strokeStyle = '#64748b';
-          ctx.arc(0, 0, 48, Math.PI / 4, 7 * Math.PI / 4);
+          ctx.strokeStyle = '#475569';
+          ctx.arc(0, 0, 42, Math.PI / 4, 7 * Math.PI / 4);
           ctx.stroke();
 
-          // 拨动圆销 (Drive Pin)
+          // 拨动圆销
           ctx.fillStyle = '#38bdf8';
           ctx.beginPath();
           ctx.arc(rPin, 0, 6, 0, Math.PI * 2);
@@ -91,44 +91,40 @@ window.GenevaDriveMechanism = {
           ctx.stroke();
           ctx.restore();
 
-          // 2. 绘制标准四槽日内瓦槽轮外形 (十字槽 + 4处锁止凹圆弧)
+          // 2. 绘制标准实体日内瓦四槽轮
           ctx.save();
           ctx.translate(genevaX, originY);
           ctx.rotate(genevaAngle);
-          ctx.strokeStyle = '#ffffff';
-          ctx.lineWidth = 1.5;
+          ctx.strokeStyle = '#cbd5e1';
+          ctx.lineWidth = 1.2;
 
-          ctx.beginPath();
           for (let i = 0; i < 4; i++) {
-            const rot = (i * Math.PI) / 2;
             ctx.save();
-            ctx.rotate(rot);
-            // 径向十字滑槽
-            ctx.strokeRect(26, -5, 60, 10);
-            // 边缘四条定规锁止凹弧 (Crescent cutouts)
+            ctx.rotate((i * Math.PI) / 2);
+            // 实体槽轮轮廓导槽
+            ctx.strokeRect(18, -6, 52, 12);
+            // 边缘四段外凹锁止圆弧
             ctx.beginPath();
-            ctx.arc(68, 68, 48, 0, Math.PI * 2);
-            ctx.strokeStyle = '#334155';
+            ctx.arc(60, 60, 42, 0, Math.PI * 2);
+            ctx.strokeStyle = '#273344';
             ctx.stroke();
             ctx.restore();
           }
 
           // 中心定位孔
           ctx.beginPath();
-          ctx.arc(0, 0, 12, 0, Math.PI * 2);
+          ctx.arc(0, 0, 8, 0, Math.PI * 2);
           ctx.strokeStyle = '#94a3b8';
           ctx.stroke();
           ctx.restore();
 
-          // 3. 中心轴承座与中心距辅助点划线
-          ctx.setLineDash([4, 4]);
+          // 轴承支座参考点划线
+          ctx.setLineDash([3, 3]);
           ctx.strokeStyle = '#1e293b';
           ctx.beginPath();
           ctx.moveTo(driverX, originY);
           ctx.lineTo(genevaX, originY);
           ctx.stroke();
-          ctx.setLineDash([]);
-
           ctx.restore();
         }
       }
@@ -136,7 +132,7 @@ window.GenevaDriveMechanism = {
     }
     requestAnimationFrame(draw);
 
-    Composite.add(engine.world, [driver, geneva, pD, pG]);
+    Composite.add(engine.world, [driver, pD]);
 
     return {
       driveBody: driver,
@@ -146,9 +142,10 @@ window.GenevaDriveMechanism = {
         Events.off(engine, 'beforeUpdate', updateGeneva);
       },
       getTelemetry() {
+        const deg = (((-genevaAngle * 180 / Math.PI) % 360 + 360) % 360).toFixed(1);
         return {
           v1: `${(driver.angularVelocity * 60).toFixed(2)} rad/s`,
-          v2: `${((((genevaAngle * 180) / Math.PI) % 360 + 360) % 360).toFixed(1)}° (步进角)`
+          v2: `${deg}° (间歇锁止)`
         };
       }
     };
