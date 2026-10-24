@@ -1,11 +1,11 @@
-// 全局调度总成：集成手摇曲柄把手 (Manual Crank Handle) 与 9 大机构
+// 全局调度总成：集成工业阻尼手摇手柄 (Smooth Manual Crank) 与 9 大机构
 const { Engine, Render, Runner, Composite, Mouse, MouseConstraint, Body } = Matter;
 
 const viewport = document.getElementById('viewport');
 let width = viewport.clientWidth;
 let height = viewport.clientHeight;
 
-// 1. 初始化引擎与渲染
+// 1. 初始化引擎与渲染器
 const engine = Engine.create();
 engine.gravity.y = 0;
 
@@ -69,15 +69,15 @@ function loadMechanism(key) {
   updateLanguage(currentLang);
 }
 
-// 3. 动力系统：电机驱动 VS 工业手摇把手交互 (Manual Crank)
+// 3. 动力与手摇系统 (工业平滑阻尼算法)
 let isMotorOn = true;
 let targetRpm = 30;
 let isDraggingHandle = false;
-let manualAngVel = 0;
+let smoothedManualAngVel = 0; // 平滑后的手摇角速度
 let lastMouseAngle = null;
 let lastMouseTime = performance.now();
 
-// 手摇手柄鼠标事件监听
+// 鼠标抓取手摇手柄
 viewport.addEventListener('mousedown', (e) => {
   if (isMotorOn || !activeInstance || !activeInstance.driveBody) return;
   const rect = viewport.getBoundingClientRect();
@@ -85,9 +85,8 @@ viewport.addEventListener('mousedown', (e) => {
   const my = e.clientY - rect.top;
   const db = activeInstance.driveBody;
 
-  // 判断是否点中驱动轮把手外圈 (把手半径 55px 处)
   const dist = Math.hypot(mx - db.position.x, my - db.position.y);
-  if (dist >= 25 && dist <= 85) {
+  if (dist >= 20 && dist <= 90) {
     isDraggingHandle = true;
     lastMouseAngle = Math.atan2(my - db.position.y, mx - db.position.x);
     lastMouseTime = performance.now();
@@ -105,14 +104,18 @@ window.addEventListener('mousemove', (e) => {
   const now = performance.now();
   const dt = (now - lastMouseTime) / 1000;
 
-  if (dt > 0.005) {
+  if (dt > 0.015) { // 降低高频采样抖动
     let dTheta = curAngle - lastMouseAngle;
     if (dTheta > Math.PI) dTheta -= Math.PI * 2;
     if (dTheta < -Math.PI) dTheta += Math.PI * 2;
 
-    manualAngVel = dTheta / dt;
-    Body.setAngle(db, db.angle + dTheta);
-    Body.setAngularVelocity(db, manualAngVel / 60);
+    const rawVel = dTheta / dt;
+    // 指数平滑滤波 (α = 0.25)，限制最大转速杜绝暴冲
+    smoothedManualAngVel = smoothedManualAngVel * 0.75 + rawVel * 0.25;
+    const clampedVel = Math.max(-12, Math.min(12, smoothedManualAngVel));
+
+    Body.setAngle(db, db.angle + dTheta * 0.7); // 减弱直接角位移突变
+    Body.setAngularVelocity(db, clampedVel / 45);
 
     lastMouseAngle = curAngle;
     lastMouseTime = now;
@@ -130,9 +133,9 @@ Matter.Events.on(engine, 'beforeUpdate', () => {
     Body.setAngularVelocity(activeInstance.driveBody, targetAngVel);
   }
 
-  // 阻尼让手摇平缓衰减
+  // 松手后平滑阻尼滑行制动
   if (!isMotorOn && !isDraggingHandle) {
-    manualAngVel *= 0.92;
+    smoothedManualAngVel *= 0.88;
   }
 
   if (activeInstance && activeInstance.getTelemetry) {
@@ -144,7 +147,7 @@ Matter.Events.on(engine, 'beforeUpdate', () => {
       if (isMotorOn) {
         angEl.innerText = data.v1;
       } else {
-        const manRpm = Math.abs(manualAngVel * 60 / (2 * Math.PI)).toFixed(1);
+        const manRpm = Math.abs((smoothedManualAngVel * 60) / (2 * Math.PI)).toFixed(1);
         angEl.innerText = `${manRpm} RPM (手摇)`;
       }
     }
@@ -152,7 +155,7 @@ Matter.Events.on(engine, 'beforeUpdate', () => {
   }
 });
 
-// 手摇把手视觉叠加层 (在空挡模式下呈现工科把手)
+// 手摇手柄工业视觉渲染
 const canvas = document.querySelector('#viewport canvas');
 function renderManualHandle() {
   if (!isMotorOn && activeInstance && activeInstance.driveBody && canvas) {
@@ -164,7 +167,7 @@ function renderManualHandle() {
       const hy = db.position.y + hRadius * Math.sin(db.angle);
 
       ctx.save();
-      // 把手旋转引导虚线圈
+      // 把手圆周导轨
       ctx.setLineDash([3, 3]);
       ctx.strokeStyle = '#334155';
       ctx.lineWidth = 1;
@@ -172,16 +175,16 @@ function renderManualHandle() {
       ctx.arc(db.position.x, db.position.y, hRadius, 0, Math.PI * 2);
       ctx.stroke();
 
-      // 把手金属曲柄与握把
+      // 金属手摇连杆
       ctx.setLineDash([]);
       ctx.strokeStyle = '#38bdf8';
-      ctx.lineWidth = 2;
+      ctx.lineWidth = 2.5;
       ctx.beginPath();
       ctx.moveTo(db.position.x, db.position.y);
       ctx.lineTo(hx, hy);
       ctx.stroke();
 
-      // 旋钮握把 (Knob)
+      // 握把旋钮
       ctx.fillStyle = isDraggingHandle ? '#ffffff' : '#38bdf8';
       ctx.beginPath();
       ctx.arc(hx, hy, 8, 0, Math.PI * 2);
@@ -189,11 +192,10 @@ function renderManualHandle() {
       ctx.strokeStyle = '#ffffff';
       ctx.stroke();
 
-      // 提示标签
+      // 提示
       ctx.fillStyle = '#64748b';
       ctx.font = '10px ui-monospace, monospace';
       ctx.fillText('CRANK HANDLE [DRAG TO ROTATE]', db.position.x - 70, db.position.y + hRadius + 22);
-
       ctx.restore();
     }
   }
@@ -201,7 +203,7 @@ function renderManualHandle() {
 }
 requestAnimationFrame(renderManualHandle);
 
-// 4. 国际化与事件
+// 4. 双语与事件绑定
 let currentLang = 'zh';
 const dict = {
   zh: {
