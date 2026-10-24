@@ -3,202 +3,10 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>KINETIC SPEC // 机械动力规约 0.2</title>
-  <style>
-    * { box-sizing: border-box; margin: 0; padding: 0; }
-    body {
-      background-color: #0c0d0e;
-      color: #d1d5db;
-      font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", ui-monospace, SFMono-Regular, Menlo, monospace;
-      overflow: hidden;
-      display: flex;
-      flex-direction: column;
-      height: 100vh;
-      user-select: none;
-      -webkit-font-smoothing: antialiased;
-    }
-
-    /* 顶部导航与状态栏 */
-    header {
-      padding: 12px 20px;
-      border-bottom: 1px solid #1f2428;
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      font-size: 11px;
-      letter-spacing: 0.08em;
-    }
-    .header-left {
-      display: flex;
-      align-items: center;
-    }
-    .badge {
-      display: inline-block;
-      width: 6px;
-      height: 6px;
-      background: #10b981;
-      border-radius: 50%;
-      margin-right: 8px;
-    }
-    .header-right {
-      display: flex;
-      align-items: center;
-      gap: 16px;
-    }
-    #sysStatus {
-      color: #9ca3af;
-    }
-
-    /* 极简双语切换开关 */
-    .lang-switch {
-      display: flex;
-      background: #15181c;
-      border: 1px solid #283039;
-      border-radius: 2px;
-      overflow: hidden;
-    }
-    .lang-btn {
-      background: transparent;
-      border: none;
-      color: #64748b;
-      padding: 4px 8px;
-      font-size: 10px;
-      font-family: inherit;
-      cursor: pointer;
-      letter-spacing: 0.05em;
-      transition: all 0.2s;
-    }
-    .lang-btn.active {
-      background: #e5e7eb;
-      color: #0c0d0e;
-      font-weight: 600;
-    }
-
-    /* 主体双栏布局 */
-    #workspace {
-      flex: 1;
-      display: flex;
-      position: relative;
-      overflow: hidden;
-    }
-
-    /* 左侧控制台 */
-    #sidebar {
-      width: 280px;
-      border-right: 1px solid #1f2428;
-      background: #0f1113;
-      padding: 20px;
-      display: flex;
-      flex-direction: column;
-      gap: 24px;
-      z-index: 10;
-    }
-
-    .panel-section {
-      display: flex;
-      flex-direction: column;
-      gap: 8px;
-    }
-    .panel-title {
-      font-size: 10px;
-      color: #6b7280;
-      letter-spacing: 0.08em;
-      border-bottom: 1px dashed #242b33;
-      padding-bottom: 4px;
-      font-weight: 500;
-    }
-
-    .control-row {
-      display: flex;
-      justify-content: space-between;
-      font-size: 12px;
-      margin-top: 4px;
-      color: #9ca3af;
-    }
-
-    /* 极简滑块 */
-    input[type=range] {
-      -webkit-appearance: none;
-      width: 100%;
-      background: #1e252e;
-      height: 2px;
-      outline: none;
-      margin: 10px 0;
-    }
-    input[type=range]::-webkit-slider-thumb {
-      -webkit-appearance: none;
-      width: 10px;
-      height: 10px;
-      background: #e5e7eb;
-      border-radius: 0;
-      cursor: pointer;
-    }
-
-    /* 开关按钮 */
-    .btn-toggle {
-      background: #181c20;
-      border: 1px solid #2d3748;
-      color: #e5e7eb;
-      padding: 9px 12px;
-      font-size: 12px;
-      font-family: inherit;
-      cursor: pointer;
-      letter-spacing: 0.04em;
-      text-align: center;
-      transition: all 0.2s;
-    }
-    .btn-toggle.active {
-      background: #e5e7eb;
-      color: #0c0d0e;
-      border-color: #e5e7eb;
-      font-weight: 600;
-    }
-
-    /* 实时遥测读数网格 */
-    .telemetry-grid {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 12px;
-      margin-top: 6px;
-    }
-    .telemetry-item {
-      background: #14181c;
-      padding: 8px 10px;
-      border: 1px solid #1f262e;
-    }
-    .telemetry-item span {
-      display: block;
-      font-size: 10px;
-      color: #64748b;
-      margin-bottom: 2px;
-    }
-    .telemetry-item strong {
-      font-size: 14px;
-      color: #f1f5f9;
-      font-weight: 500;
-      font-family: ui-monospace, monospace;
-    }
-
-    /* 仿真画布视口 */
-    #viewport {
-      flex: 1;
-      width: 100%;
-      height: 100%;
-      position: relative;
-    }
-
-    /* 底部状态 */
-    footer {
-      padding: 12px 20px;
-      border-top: 1px solid #1f2428;
-      display: flex;
-      justify-content: space-between;
-      font-size: 11px;
-      color: #4b5563;
-      letter-spacing: 0.04em;
-    }
-  </style>
-  <!-- 引入保存在仓库同级的本地 Matter.js -->
+  <title>KINETIC SPEC // 机械动力学仿真沙盒</title>
+  <!-- 样式外链 -->
+  <link rel="stylesheet" href="./style.css">
+  <!-- 本地 Matter.js -->
   <script src="./matter.min.js"></script>
 </head>
 <body>
@@ -209,7 +17,6 @@
     </div>
     <div class="header-right">
       <div id="sysStatus">状态: 动力源运行中 / 支持鼠标拖拽</div>
-      <!-- 双语切换器 -->
       <div class="lang-switch">
         <button id="langZh" class="lang-btn active">中文</button>
         <button id="langEn" class="lang-btn">EN</button>
@@ -218,13 +25,23 @@
   </header>
 
   <div id="workspace">
-    <!-- 左侧控制面板 -->
     <div id="sidebar">
+      <!-- 00 预设机构选择 -->
+      <div class="panel-section">
+        <div class="panel-title" id="sec0Title">00 / 经典机构预设 (教材第七章)</div>
+        <div class="preset-grid">
+          <button id="btnPresetCrank" class="btn-preset active">曲柄滑块</button>
+          <button id="btnPresetFourBar" class="btn-preset">铰链四连杆</button>
+        </div>
+      </div>
+
+      <!-- 01 驱动单元 -->
       <div class="panel-section">
         <div class="panel-title" id="sec1Title">01 / 驱动单元</div>
         <button id="motorBtn" class="btn-toggle active">电机状态: 已接入驱动</button>
       </div>
 
+      <!-- 02 运动学调节 -->
       <div class="panel-section">
         <div class="panel-title" id="sec2Title">02 / 运动学调节</div>
         <div class="control-row">
@@ -234,218 +51,40 @@
         <input type="range" id="rpmSlider" min="0" max="90" value="30">
 
         <div class="control-row">
-          <span id="frictionLabel">空气阻尼 / 摩擦</span>
+          <span id="frictionLabel">系统阻尼 / 摩擦</span>
           <span id="frictionVal">0.020</span>
         </div>
         <input type="range" id="frictionSlider" min="0" max="0.1" step="0.005" value="0.02">
       </div>
 
+      <!-- 03 实时遥测 -->
       <div class="panel-section">
         <div class="panel-title" id="sec3Title">03 / 实时遥测数据</div>
         <div class="telemetry-grid">
           <div class="telemetry-item">
-            <span id="angVelLabel">角速度 (rad/s)</span>
-            <strong id="angVel">3.14</strong>
+            <span id="angVelLabel">主动角速度</span>
+            <strong id="angVel">3.14 rad/s</strong>
           </div>
           <div class="telemetry-item">
-            <span id="dispLabel">滑块位移 (px)</span>
-            <strong id="dispVal">0.0</strong>
+            <span id="dispLabel">滑块位移</span>
+            <strong id="dispVal">0.0 px</strong>
           </div>
         </div>
       </div>
     </div>
 
-    <!-- 物理渲染视口 -->
+    <!-- 物理仿真视口 -->
     <div id="viewport"></div>
   </div>
 
   <footer>
-    <div id="footerType">机构形式: 平面曲柄滑块机构 (刚体动力学)</div>
-    <div id="footerCore">解算核心: 本地部署 MATTER.JS 引擎</div>
+    <div id="footerType">机构形式: 平面曲柄滑块机构</div>
+    <div id="footerCore">解算核心: 本地部署 MATTER.JS // 模块化驱动架构</div>
   </footer>
 
-  <script>
-    const { Engine, Render, Runner, Bodies, Composite, Constraint, Mouse, MouseConstraint, Body } = Matter;
-
-    const viewport = document.getElementById('viewport');
-    let width = viewport.clientWidth;
-    let height = viewport.clientHeight;
-
-    // 1. 初始化引擎与冷淡线框渲染
-    const engine = Engine.create();
-    engine.gravity.y = 0; // 平面机构运动
-
-    const render = Render.create({
-      element: viewport,
-      engine: engine,
-      options: {
-        width: width,
-        height: height,
-        wireframes: true,
-        background: '#0c0d0e'
-      }
-    });
-    Render.run(render);
-    const runner = Runner.create();
-    Runner.run(runner, engine);
-
-    // 2. 构造曲柄滑块机构
-    const originX = width / 2 - 120;
-    const originY = height / 2;
-    const crankRadius = 60;
-    const rodLength = 220;
-
-    const crank = Bodies.circle(originX, originY, crankRadius, {
-      collisionFilter: { group: -1 },
-      frictionAir: 0.02
-    });
-
-    const crankPivot = Constraint.create({
-      pointA: { x: originX, y: originY },
-      bodyB: crank,
-      pointB: { x: 0, y: 0 },
-      stiffness: 1,
-      render: { strokeStyle: '#ffffff', lineWidth: 1 }
-    });
-
-    const slider = Bodies.rectangle(originX + rodLength, originY, 70, 36, {
-      collisionFilter: { group: -1 },
-      frictionAir: 0.02
-    });
-
-    const sliderTrack = Constraint.create({
-      pointA: { x: originX + rodLength, y: originY },
-      bodyB: slider,
-      pointB: { x: 0, y: 0 },
-      stiffness: 0.05,
-      length: 0,
-      render: { strokeStyle: '#262d35', lineWidth: 1 }
-    });
-
-    const rod = Constraint.create({
-      bodyA: crank,
-      pointA: { x: crankRadius - 10, y: 0 },
-      bodyB: slider,
-      pointB: { x: -30, y: 0 },
-      stiffness: 1,
-      length: rodLength,
-      render: { strokeStyle: '#ffffff', lineWidth: 1.5 }
-    });
-
-    Composite.add(engine.world, [crank, crankPivot, slider, sliderTrack, rod]);
-
-    // 3. 鼠标交互
-    const mouse = Mouse.create(render.canvas);
-    const mouseConstraint = MouseConstraint.create(engine, {
-      mouse: mouse,
-      constraint: { stiffness: 0.2, render: { visible: false } }
-    });
-    Composite.add(engine.world, mouseConstraint);
-    render.mouse = mouse;
-
-    // 4. 动力控制与系统循环
-    let isMotorOn = true;
-    let targetRpm = 30;
-
-    Matter.Events.on(engine, 'beforeUpdate', () => {
-      if (isMotorOn) {
-        const targetAngVel = (targetRpm * 2 * Math.PI) / (60 * 60);
-        Body.setAngularVelocity(crank, targetAngVel);
-      }
-      
-      document.getElementById('angVel').innerText = (crank.angularVelocity * 60).toFixed(2);
-      document.getElementById('dispVal').innerText = (slider.position.x - originX).toFixed(1);
-    });
-
-    // 5. 语言系统 (i18n)
-    let currentLang = 'zh';
-
-    const dict = {
-      zh: {
-        subTitle: '机械动力学仿真沙盒',
-        statusMotorOn: '状态: 动力源运行中 / 支持鼠标拖拽',
-        statusMotorOff: '状态: 手动模式 / 按住构件拖动',
-        sec1: '01 / 驱动单元',
-        motorOn: '电机状态: 已接入驱动',
-        motorOff: '电机状态: 空挡 (手动拨动)',
-        sec2: '02 / 运动学调节',
-        rpm: '主动轮转速',
-        friction: '空气阻尼 / 摩擦',
-        sec3: '03 / 实时遥测数据',
-        angVel: '角速度 (rad/s)',
-        disp: '滑块位移 (px)',
-        footerType: '机构形式: 平面曲柄滑块机构 (刚体动力学)',
-        footerCore: '解算核心: 本地部署 MATTER.JS 引擎'
-      },
-      en: {
-        subTitle: 'RIGID SIMULATION SUITE',
-        statusMotorOn: 'SYS: EQUILIBRIUM ACTIVE / DRAG TO INTERACT',
-        statusMotorOff: 'SYS: MANUAL MODE / DRAG COMPONENT',
-        sec1: '01 / DRIVE UNIT',
-        motorOn: 'MOTOR: ENGAGED',
-        motorOff: 'MOTOR: DISENGAGED (MANUAL)',
-        sec2: '02 / KINEMATICS REGULATION',
-        rpm: 'DRIVE SPEED',
-        friction: 'SYSTEM FRICTION',
-        sec3: '03 / TELEMETRY LOG',
-        angVel: 'ANGULAR VEL (rad/s)',
-        disp: 'DISPLACEMENT (px)',
-        footerType: 'TYPE: CRANK-SLIDER MECHANISM (PLANAR DYNAMICS)',
-        footerCore: 'SOLVER: MATTER.JS VER: 0.19.0 // PURE LOCAL BUILD'
-      }
-    };
-
-    function updateLanguage(lang) {
-      currentLang = lang;
-      const t = dict[lang];
-
-      document.getElementById('headerSub').innerText = t.subTitle;
-      document.getElementById('sysStatus').innerText = isMotorOn ? t.statusMotorOn : t.statusMotorOff;
-      document.getElementById('sec1Title').innerText = t.sec1;
-      document.getElementById('motorBtn').innerText = isMotorOn ? t.motorOn : t.motorOff;
-      document.getElementById('sec2Title').innerText = t.sec2;
-      document.getElementById('rpmLabel').innerText = t.rpm;
-      document.getElementById('frictionLabel').innerText = t.friction;
-      document.getElementById('sec3Title').innerText = t.sec3;
-      document.getElementById('angVelLabel').innerText = t.angVel;
-      document.getElementById('dispLabel').innerText = t.disp;
-      document.getElementById('footerType').innerText = t.footerType;
-      document.getElementById('footerCore').innerText = t.footerCore;
-
-      document.getElementById('langZh').classList.toggle('active', lang === 'zh');
-      document.getElementById('langEn').classList.toggle('active', lang === 'en');
-    }
-
-    document.getElementById('langZh').addEventListener('click', () => updateLanguage('zh'));
-    document.getElementById('langEn').addEventListener('click', () => updateLanguage('en'));
-
-    // 6. UI 控制监听
-    const motorBtn = document.getElementById('motorBtn');
-    motorBtn.addEventListener('click', () => {
-      isMotorOn = !isMotorOn;
-      motorBtn.classList.toggle('active', isMotorOn);
-      updateLanguage(currentLang);
-    });
-
-    const rpmSlider = document.getElementById('rpmSlider');
-    rpmSlider.addEventListener('input', (e) => {
-      targetRpm = parseFloat(e.target.value);
-      document.getElementById('rpmVal').innerText = `${targetRpm} RPM`;
-    });
-
-    const frictionSlider = document.getElementById('frictionSlider');
-    frictionSlider.addEventListener('input', (e) => {
-      const f = parseFloat(e.target.value);
-      crank.frictionAir = f;
-      slider.frictionAir = f;
-      document.getElementById('frictionVal').innerText = f.toFixed(3);
-    });
-
-    // 视口自适应
-    window.addEventListener('resize', () => {
-      render.canvas.width = viewport.clientWidth;
-      render.canvas.height = viewport.clientHeight;
-    });
-  </script>
+  <!-- 按依赖层级引入各机构与应用主调度脚本 -->
+  <script src="./js/mechanisms/crankSlider.js"></script>
+  <script src="./js/mechanisms/fourBar.js"></script>
+  <script src="./js/app.js"></script>
 </body>
 </html>
