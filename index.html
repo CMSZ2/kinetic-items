@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>KINETIC SPEC / 01</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      background-color: #0d0d0d;
+      color: #e6e6e6;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, monospace;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      height: 100vh;
+      user-select: none;
+    }
+    header {
+      padding: 18px 24px;
+      border-bottom: 1px solid #222;
+      display: flex;
+      justify-content: space-between;
+      font-size: 11px;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+    }
+    #viewport {
+      flex: 1;
+      width: 100%;
+      height: 100%;
+      position: relative;
+    }
+    footer {
+      padding: 16px 24px;
+      border-top: 1px solid #222;
+      display: flex;
+      justify-content: space-between;
+      font-size: 11px;
+      color: #666;
+    }
+  </style>
+  <!-- 直接引入轻量物理引擎 Matter.js -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/matter-js/0.19.0/matter.min.js"></script>
+</head>
+<body>
+  <header>
+    <div><strong>KINETIC SPEC</strong> // SYSTEM DRAFT 0.1</div>
+    <div id="status">STATUS: ONLINE / DRAG TO INTERACT</div>
+  </header>
+
+  <div id="viewport"></div>
+
+  <footer>
+    <div>CRANK-SLIDER MECHANISM / 2D RIGID DYNAMICS</div>
+    <div>MATTER.JS CORE</div>
+  </footer>
+
+  <script>
+    const { Engine, Render, Runner, Bodies, Composite, Constraint, Mouse, MouseConstraint } = Matter;
+
+    const viewport = document.getElementById('viewport');
+    const width = viewport.clientWidth;
+    const height = viewport.clientHeight;
+
+    // 1. 创建物理引擎与渲染器（冷淡工程线框风格）
+    const engine = Engine.create();
+    const render = Render.create({
+      element: viewport,
+      engine: engine,
+      options: {
+        width: width,
+        height: height,
+        wireframes: true, // 核心：开启极细纯线框模式
+        background: '#0d0d0d'
+      }
+    });
+    Render.run(render);
+    const runner = Runner.create();
+    Runner.run(runner, engine);
+
+    // 2. 构造一个经典曲柄滑块机构 (Crank-Slider)
+    const centerX = width / 2;
+    const centerY = height / 2;
+
+    // 主动曲柄（可旋转圆盘）
+    const crank = Bodies.circle(centerX - 100, centerY, 50, {
+      collisionFilter: { group: -1 }
+    });
+    // 固定轴心
+    const crankPivot = Constraint.create({
+      pointA: { x: centerX - 100, y: centerY },
+      bodyB: crank,
+      pointB: { x: 0, y: 0 },
+      stiffness: 1,
+      render: { strokeStyle: '#fff', lineWidth: 1 }
+    });
+
+    // 从动滑块
+    const slider = Bodies.rectangle(centerX + 140, centerY, 60, 30, {
+      collisionFilter: { group: -1 }
+    });
+    // 滑块导轨约束（限制只在水平方向滑动）
+    const sliderTrack = Constraint.create({
+      pointA: { x: centerX + 140, y: centerY },
+      bodyB: slider,
+      pointB: { x: 0, y: 0 },
+      stiffness: 0.05,
+      length: 0,
+      render: { strokeStyle: '#333' }
+    });
+
+    // 连接曲柄与滑块的连杆
+    const rod = Constraint.create({
+      bodyA: crank,
+      pointA: { x: 40, y: 0 },
+      bodyB: slider,
+      pointB: { x: -25, y: 0 },
+      stiffness: 1,
+      length: 180,
+      render: { strokeStyle: '#fff', lineWidth: 1.5 }
+    });
+
+    // 塞入物理世界
+    Composite.add(engine.world, [crank, crankPivot, slider, sliderTrack, rod]);
+
+    // 3. 鼠标交互（用鼠标拖动连杆或滑块）
+    const mouse = Mouse.create(render.canvas);
+    const mouseConstraint = MouseConstraint.create(engine, {
+      mouse: mouse,
+      constraint: {
+        stiffness: 0.2,
+        render: { visible: false }
+      }
+    });
+    Composite.add(engine.world, mouseConstraint);
+    render.mouse = mouse;
+  </script>
+</body>
+</html>
