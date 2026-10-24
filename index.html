@@ -4,9 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>KINETIC SPEC // 机械动力学仿真沙盒</title>
-  <!-- 样式外链 -->
   <link rel="stylesheet" href="./style.css">
-  <!-- 本地 Matter.js -->
   <script src="./matter.min.js"></script>
 </head>
 <body>
@@ -26,12 +24,15 @@
 
   <div id="workspace">
     <div id="sidebar">
-      <!-- 00 预设机构选择 -->
+      <!-- 00 收纳式机构选择器 -->
       <div class="panel-section">
-        <div class="panel-title" id="sec0Title">00 / 经典机构预设 (教材第七章)</div>
-        <div class="preset-grid">
-          <button id="btnPresetCrank" class="btn-preset active">曲柄滑块</button>
-          <button id="btnPresetFourBar" class="btn-preset">铰链四连杆</button>
+        <div class="panel-title" id="sec0Title">00 / 机构拓扑库</div>
+        <div class="select-container">
+          <select id="mechanismSelect" class="industrial-select">
+            <option value="crankSlider">平面曲柄滑块机构 (Crank-Slider)</option>
+            <option value="fourBar">铰链四连杆机构 (Four-Bar)</option>
+            <option value="cam">偏心凸轮推杆机构 (Cam-Follower)</option>
+          </select>
         </div>
       </div>
 
@@ -82,9 +83,10 @@
     <div id="footerCore">解算核心: 本地部署 MATTER.JS // 模块化驱动架构</div>
   </footer>
 
-  <!-- 按依赖层级引入各机构与应用主调度脚本 -->
+  <!-- 按顺序引入机构库与调度层 -->
   <script src="./js/mechanisms/crankSlider.js"></script>
   <script src="./js/mechanisms/fourBar.js"></script>
+  <script src="./js/mechanisms/camFollower.js"></script>
   <script src="./js/app.js"></script>
 </body>
 </html>
