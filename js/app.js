@@ -85,6 +85,7 @@ Matter.Events.on(engine, 'beforeUpdate', () => {
 let currentLang = 'zh';
 const dict = {
   zh: {
+    resetBtn: '复位',
     subTitle: '机械动力学仿真沙盒',
     statusMotorOn: '状态: 动力源运行中 / 支持鼠标拖拽',
     statusMotorOff: '状态: 手动模式 / 按住构件拖动',
@@ -97,8 +98,10 @@ const dict = {
     friction: '系统阻尼 / 摩擦',
     sec3: '03 / 实时遥测数据',
     footerCore: '解算核心: 本地部署 MATTER.JS // 模块化驱动架构'
+    
   },
   en: {
+    resetBtn: 'RESET',
     subTitle: 'RIGID SIMULATION SUITE',
     statusMotorOn: 'SYS: EQUILIBRIUM ACTIVE / DRAG TO INTERACT',
     statusMotorOff: 'SYS: MANUAL MODE / DRAG COMPONENT',
@@ -118,6 +121,7 @@ function updateLanguage(lang) {
   currentLang = lang;
   const t = dict[lang];
   const p = presets[activePresetKey];
+  document.getElementById('resetBtn').innerText = t.resetBtn;
 
   document.getElementById('headerSub').innerText = t.subTitle;
   document.getElementById('sysStatus').innerText = isMotorOn ? t.statusMotorOn : t.statusMotorOff;
@@ -150,6 +154,11 @@ document.getElementById('langZh').addEventListener('click', () => updateLanguage
 document.getElementById('langEn').addEventListener('click', () => updateLanguage('en'));
 
 const motorBtn = document.getElementById('motorBtn');
+// 复位按钮：重新加载当前机构到初始几何姿态
+const resetBtn = document.getElementById('resetBtn');
+resetBtn.addEventListener('click', () => {
+  loadMechanism(activePresetKey);
+});
 motorBtn.addEventListener('click', () => {
   isMotorOn = !isMotorOn;
   motorBtn.classList.toggle('active', isMotorOn);
