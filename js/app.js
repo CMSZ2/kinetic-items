@@ -154,16 +154,19 @@ document.getElementById('langZh').addEventListener('click', () => updateLanguage
 document.getElementById('langEn').addEventListener('click', () => updateLanguage('en'));
 
 const motorBtn = document.getElementById('motorBtn');
-// 复位按钮：重新加载当前机构到初始几何姿态
-const resetBtn = document.getElementById('resetBtn');
-resetBtn.addEventListener('click', () => {
-  loadMechanism(activePresetKey);
-});
 motorBtn.addEventListener('click', () => {
   isMotorOn = !isMotorOn;
   motorBtn.classList.toggle('active', isMotorOn);
   updateLanguage(currentLang);
 });
+
+// 复位按钮：重新加载当前机构到初始几何姿态
+const resetBtn = document.getElementById('resetBtn');
+if (resetBtn) {
+  resetBtn.addEventListener('click', () => {
+    loadMechanism(activePresetKey);
+  });
+}
 
 const rpmSlider = document.getElementById('rpmSlider');
 rpmSlider.addEventListener('input', (e) => {
