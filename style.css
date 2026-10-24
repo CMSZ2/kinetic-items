@@ -110,40 +110,42 @@ header {
   font-weight: 500;
 }
 
-/* 机构选择器按钮组 */
-.preset-grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 8px;
-  margin-top: 4px;
+/* 工业感极简下拉选单 */
+.select-container {
+  position: relative;
+  width: 100%;
 }
 
-.btn-preset {
-  background: #14181c;
-  border: 1px solid #242c36;
-  color: #94a3b8;
-  padding: 8px 6px;
-  font-size: 11px;
+.industrial-select {
+  width: 100%;
+  background: #131619;
+  color: #e2e8f0;
+  border: 1px solid #27313a;
+  border-radius: 2px;
+  padding: 8px 10px;
   font-family: inherit;
+  font-size: 11px;
+  letter-spacing: 0.04em;
+  outline: none;
   cursor: pointer;
-  letter-spacing: 0.02em;
-  text-align: center;
-  transition: all 0.2s;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  appearance: none;
+  background-image: url('data:image/svg+xml;utf8,<svg fill="%2394a3b8" height="18" viewBox="0 0 24 24" width="18" xmlns="http://www.w3.org/2000/svg"><path d="M7 10l5 5 5-5z"/></svg>');
+  background-repeat: no-repeat;
+  background-position-x: calc(100% - 6px);
+  background-position-y: center;
+  transition: border-color 0.2s;
 }
 
-.btn-preset.active {
-  background: #1e2631;
-  color: #f8fafc;
-  border-color: #475569;
-  font-weight: 600;
+.industrial-select:focus {
+  border-color: #64748b;
 }
 
-.control-row {
-  display: flex;
-  justify-content: space-between;
-  font-size: 12px;
-  margin-top: 4px;
-  color: #9ca3af;
+.industrial-select option {
+  background: #111417;
+  color: #e2e8f0;
+  padding: 8px;
 }
 
 /* 极简无衬线滑块 */
