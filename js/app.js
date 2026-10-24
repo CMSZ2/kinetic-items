@@ -26,7 +26,8 @@ Runner.run(runner, engine);
 // 2. 机构管理系统
 const presets = {
   crankSlider: window.CrankSliderMechanism,
-  fourBar: window.FourBarMechanism
+  fourBar: window.FourBarMechanism,
+  cam: window.CamFollowerMechanism
 };
 
 let activePresetKey = 'crankSlider';
@@ -81,7 +82,7 @@ const dict = {
     subTitle: '机械动力学仿真沙盒',
     statusMotorOn: '状态: 动力源运行中 / 支持鼠标拖拽',
     statusMotorOff: '状态: 手动模式 / 按住构件拖动',
-    sec0: '00 / 经典机构预设 (教材第七章)',
+    sec0: '00 / 机构拓扑库',
     sec1: '01 / 驱动单元',
     motorOn: '电机状态: 已接入驱动',
     motorOff: '电机状态: 空挡 (手动拨动)',
@@ -95,7 +96,7 @@ const dict = {
     subTitle: 'RIGID SIMULATION SUITE',
     statusMotorOn: 'SYS: EQUILIBRIUM ACTIVE / DRAG TO INTERACT',
     statusMotorOff: 'SYS: MANUAL MODE / DRAG COMPONENT',
-    sec0: '00 / MECHANISM PRESETS (CHAPTER 7)',
+    sec0: '00 / MECHANISM ARCHIVE',
     sec1: '01 / DRIVE UNIT',
     motorOn: 'MOTOR: ENGAGED',
     motorOff: 'MOTOR: DISENGAGED (MANUAL)',
@@ -133,16 +134,10 @@ function updateLanguage(lang) {
 }
 
 // 5. 事件绑定
-document.getElementById('btnPresetCrank').addEventListener('click', (e) => {
-  document.querySelectorAll('.btn-preset').forEach(b => b.classList.remove('active'));
-  e.target.classList.add('active');
-  loadMechanism('crankSlider');
-});
-
-document.getElementById('btnPresetFourBar').addEventListener('click', (e) => {
-  document.querySelectorAll('.btn-preset').forEach(b => b.classList.remove('active'));
-  e.target.classList.add('active');
-  loadMechanism('fourBar');
+// 下拉选单切换机构
+const mechanismSelect = document.getElementById('mechanismSelect');
+mechanismSelect.addEventListener('change', (e) => {
+  loadMechanism(e.target.value);
 });
 
 document.getElementById('langZh').addEventListener('click', () => updateLanguage('zh'));
