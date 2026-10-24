@@ -3,138 +3,343 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>KINETIC SPEC / 01</title>
+  <title>KINETIC SPEC // 0.2</title>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body {
-      background-color: #0d0d0d;
-      color: #e6e6e6;
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, monospace;
+      background-color: #0c0d0e;
+      color: #d1d5db;
+      font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
       overflow: hidden;
       display: flex;
       flex-direction: column;
       height: 100vh;
       user-select: none;
+      -webkit-font-smoothing: antialiased;
     }
+
+    /* 顶部导航与状态 */
     header {
-      padding: 18px 24px;
-      border-bottom: 1px solid #222;
+      padding: 14px 20px;
+      border-bottom: 1px solid #1f2428;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 11px;
+      letter-spacing: 0.12em;
+    }
+    .badge {
+      display: inline-block;
+      width: 6px;
+      height: 6px;
+      background: #10b981;
+      border-radius: 50%;
+      margin-right: 8px;
+    }
+
+    /* 主体双栏布局 */
+    #workspace {
+      flex: 1;
+      display: flex;
+      position: relative;
+      overflow: hidden;
+    }
+
+    /* 左侧精密仪器控制台 */
+    #sidebar {
+      width: 280px;
+      border-right: 1px solid #1f2428;
+      background: #0f1113;
+      padding: 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 24px;
+      z-index: 10;
+    }
+
+    .panel-section {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+    .panel-title {
+      font-size: 10px;
+      color: #6b7280;
+      letter-spacing: 0.1em;
+      border-bottom: 1px dashed #242b33;
+      padding-bottom: 4px;
+    }
+
+    .control-row {
       display: flex;
       justify-content: space-between;
       font-size: 11px;
-      letter-spacing: 0.1em;
-      text-transform: uppercase;
+      margin-top: 4px;
     }
+
+    /* 极简无衬线滑块 */
+    input[type=range] {
+      -webkit-appearance: none;
+      width: 100%;
+      background: #1e252e;
+      height: 2px;
+      outline: none;
+      margin: 10px 0;
+    }
+    input[type=range]::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      width: 10px;
+      height: 10px;
+      background: #e5e7eb;
+      border-radius: 0;
+      cursor: pointer;
+    }
+
+    /* 开关按钮 */
+    .btn-toggle {
+      background: #181c20;
+      border: 1px solid #2d3748;
+      color: #e5e7eb;
+      padding: 8px 12px;
+      font-size: 11px;
+      font-family: inherit;
+      cursor: pointer;
+      letter-spacing: 0.05em;
+      text-align: center;
+      transition: all 0.2s;
+    }
+    .btn-toggle.active {
+      background: #e5e7eb;
+      color: #0c0d0e;
+      border-color: #e5e7eb;
+    }
+
+    /* 实时读数遥测面板 */
+    .telemetry-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+      margin-top: 6px;
+    }
+    .telemetry-item {
+      background: #14181c;
+      padding: 8px 10px;
+      border: 1px solid #1f262e;
+    }
+    .telemetry-item span {
+      display: block;
+      font-size: 9px;
+      color: #64748b;
+    }
+    .telemetry-item strong {
+      font-size: 14px;
+      color: #f1f5f9;
+      font-weight: 500;
+    }
+
+    /* 视口画布 */
     #viewport {
       flex: 1;
       width: 100%;
       height: 100%;
       position: relative;
     }
+
+    /* 底部标注栏 */
     footer {
-      padding: 16px 24px;
-      border-top: 1px solid #222;
+      padding: 12px 20px;
+      border-top: 1px solid #1f2428;
       display: flex;
       justify-content: space-between;
-      font-size: 11px;
-      color: #666;
+      font-size: 10px;
+      color: #4b5563;
+      letter-spacing: 0.05em;
     }
   </style>
-  <!-- 引入轻量物理引擎 Matter.js -->
+  <!-- 引入之前下载保存在仓库里的本地 Matter.js -->
   <script src="./matter.min.js"></script>
 </head>
 <body>
   <header>
-    <div><strong>KINETIC SPEC</strong> // SYSTEM DRAFT 0.1</div>
-    <div id="status">STATUS: ONLINE / DRAG TO INTERACT</div>
+    <div><span class="badge"></span><strong>KINETIC SPEC</strong> // RIGID SIMULATION SUITE</div>
+    <div>SYS: EQUILIBRIUM ACTIVE</div>
   </header>
 
-  <div id="viewport"></div>
+  <div id="workspace">
+    <!-- 控制面板 -->
+    <div id="sidebar">
+      <div class="panel-section">
+        <div class="panel-title">01 / DRIVE UNIT</div>
+        <button id="motorBtn" class="btn-toggle active">MOTOR: ENGAGED</button>
+      </div>
+
+      <div class="panel-section">
+        <div class="panel-title">02 / KINEMATICS REGULATION</div>
+        <div class="control-row">
+          <span>DRIVE SPEED</span>
+          <span id="rpmVal">30 RPM</span>
+        </div>
+        <input type="range" id="rpmSlider" min="0" max="90" value="30">
+
+        <div class="control-row">
+          <span>SYSTEM FRICTION</span>
+          <span id="frictionVal">0.02</span>
+        </div>
+        <input type="range" id="frictionSlider" min="0" max="0.1" step="0.005" value="0.02">
+      </div>
+
+      <div class="panel-section">
+        <div class="panel-title">03 / TELEMETRY LOG</div>
+        <div class="telemetry-grid">
+          <div class="telemetry-item">
+            <span>ANGULAR VEL (rad/s)</span>
+            <strong id="angVel">3.14</strong>
+          </div>
+          <div class="telemetry-item">
+            <span>DISPLACEMENT (px)</span>
+            <strong id="dispVal">0.0</strong>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 物理渲染视口 -->
+    <div id="viewport"></div>
+  </div>
 
   <footer>
-    <div>CRANK-SLIDER MECHANISM / 2D RIGID DYNAMICS</div>
-    <div>MATTER.JS CORE</div>
+    <div>TYPE: CRANK-SLIDER MECHANISM (PLANAR DYNAMICS)</div>
+    <div>SOLVER: MATTER.JS VER: 0.19.0 // PURE LOCAL BUILD</div>
   </footer>
 
   <script>
-    const { Engine, Render, Runner, Bodies, Composite, Constraint, Mouse, MouseConstraint } = Matter;
+    const { Engine, Render, Runner, Bodies, Composite, Constraint, Mouse, MouseConstraint, Body } = Matter;
 
     const viewport = document.getElementById('viewport');
-    const width = viewport.clientWidth;
-    const height = viewport.clientHeight;
+    let width = viewport.clientWidth;
+    let height = viewport.clientHeight;
 
-    // 1. 创建物理引擎与渲染器（冷淡工程线框风格）
+    // 1. 初始化引擎与冷淡线框渲染
     const engine = Engine.create();
+    engine.gravity.y = 0; // 设置为无重力/平面机构运动，传动更纯粹
+
     const render = Render.create({
       element: viewport,
       engine: engine,
       options: {
         width: width,
         height: height,
-        wireframes: true, // 核心：开启极细纯线框模式
-        background: '#0d0d0d'
+        wireframes: true, // 保持极细线框模式
+        background: '#0c0d0e'
       }
     });
     Render.run(render);
     const runner = Runner.create();
     Runner.run(runner, engine);
 
-    // 2. 构造一个经典曲柄滑块机构 (Crank-Slider)
-    const centerX = width / 2;
-    const centerY = height / 2;
+    // 2. 构造曲柄滑块机构
+    const originX = width / 2 - 120;
+    const originY = height / 2;
+    const crankRadius = 60;
+    const rodLength = 220;
 
-    // 主动曲柄（可旋转圆盘）
-    const crank = Bodies.circle(centerX - 100, centerY, 50, {
-      collisionFilter: { group: -1 }
+    // 主动曲柄圆盘
+    const crank = Bodies.circle(originX, originY, crankRadius, {
+      collisionFilter: { group: -1 },
+      frictionAir: 0.02
     });
-    // 固定轴心
+
+    // 曲柄固定轴
     const crankPivot = Constraint.create({
-      pointA: { x: centerX - 100, y: centerY },
+      pointA: { x: originX, y: originY },
       bodyB: crank,
       pointB: { x: 0, y: 0 },
       stiffness: 1,
-      render: { strokeStyle: '#fff', lineWidth: 1 }
+      render: { strokeStyle: '#ffffff', lineWidth: 1 }
     });
 
     // 从动滑块
-    const slider = Bodies.rectangle(centerX + 140, centerY, 60, 30, {
-      collisionFilter: { group: -1 }
+    const slider = Bodies.rectangle(originX + rodLength, originY, 70, 36, {
+      collisionFilter: { group: -1 },
+      frictionAir: 0.02
     });
-    // 滑块导轨约束（限制只在水平方向滑动）
+
+    // 水平导轨约束
     const sliderTrack = Constraint.create({
-      pointA: { x: centerX + 140, y: centerY },
+      pointA: { x: originX + rodLength, y: originY },
       bodyB: slider,
       pointB: { x: 0, y: 0 },
       stiffness: 0.05,
       length: 0,
-      render: { strokeStyle: '#333' }
+      render: { strokeStyle: '#262d35', lineWidth: 1 }
     });
 
-    // 连接曲柄与滑块的连杆
+    // 连杆
     const rod = Constraint.create({
       bodyA: crank,
-      pointA: { x: 40, y: 0 },
+      pointA: { x: crankRadius - 10, y: 0 },
       bodyB: slider,
-      pointB: { x: -25, y: 0 },
+      pointB: { x: -30, y: 0 },
       stiffness: 1,
-      length: 180,
-      render: { strokeStyle: '#fff', lineWidth: 1.5 }
+      length: rodLength,
+      render: { strokeStyle: '#ffffff', lineWidth: 1.5 }
     });
 
-    // 塞入物理世界
     Composite.add(engine.world, [crank, crankPivot, slider, sliderTrack, rod]);
 
-    // 3. 鼠标交互（用鼠标拖动连杆或滑块）
+    // 3. 鼠标交互
     const mouse = Mouse.create(render.canvas);
     const mouseConstraint = MouseConstraint.create(engine, {
       mouse: mouse,
-      constraint: {
-        stiffness: 0.2,
-        render: { visible: false }
-      }
+      constraint: { stiffness: 0.2, render: { visible: false } }
     });
     Composite.add(engine.world, mouseConstraint);
     render.mouse = mouse;
+
+    // 4. 动力控制与遥测数据驱动
+    let isMotorOn = true;
+    let targetRpm = 30;
+
+    // 驱动电机循环（通过给曲柄施加恒定角速度实现动力源）
+    Matter.Events.on(engine, 'beforeUpdate', () => {
+      if (isMotorOn) {
+        // RPM 转为 弧度/帧（假设约60fps）
+        const targetAngVel = (targetRpm * 2 * Math.PI) / (60 * 60);
+        Body.setAngularVelocity(crank, targetAngVel);
+      }
+      
+      // 更新控制台实时读数
+      document.getElementById('angVel').innerText = (crank.angularVelocity * 60).toFixed(2);
+      document.getElementById('dispVal').innerText = (slider.position.x - originX).toFixed(1);
+    });
+
+    // UI 事件监听
+    const motorBtn = document.getElementById('motorBtn');
+    motorBtn.addEventListener('click', () => {
+      isMotorOn = !isMotorOn;
+      motorBtn.classList.toggle('active', isMotorOn);
+      motorBtn.innerText = isMotorOn ? 'MOTOR: ENGAGED' : 'MOTOR: DISENGAGED (MANUAL)';
+    });
+
+    const rpmSlider = document.getElementById('rpmSlider');
+    rpmSlider.addEventListener('input', (e) => {
+      targetRpm = parseFloat(e.target.value);
+      document.getElementById('rpmVal').innerText = `${targetRpm} RPM`;
+    });
+
+    const frictionSlider = document.getElementById('frictionSlider');
+    frictionSlider.addEventListener('input', (e) => {
+      const f = parseFloat(e.target.value);
+      crank.frictionAir = f;
+      slider.frictionAir = f;
+      document.getElementById('frictionVal').innerText = f.toFixed(3);
+    });
+
+    // 窗口尺寸自适应
+    window.addEventListener('resize', () => {
+      render.canvas.width = viewport.clientWidth;
+      render.canvas.height = viewport.clientHeight;
+    });
   </script>
 </body>
 </html>
