@@ -1,4 +1,4 @@
-// 全局调度总成：集成工业阻尼手摇手柄 (Smooth Manual Crank) 与 9 大机构
+// 全局调度总成：集成 1:1 绝对跟手工业手摇把手 (Precision Manual Crank) 与 9 大机构
 const { Engine, Render, Runner, Composite, Mouse, MouseConstraint, Body } = Matter;
 
 const viewport = document.getElementById('viewport');
@@ -69,15 +69,14 @@ function loadMechanism(key) {
   updateLanguage(currentLang);
 }
 
-// 3. 动力与手摇系统 (工业平滑阻尼算法)
+// 3. 动力与手摇系统 (1:1 精确跟手交互，杜绝过敏发散)
 let isMotorOn = true;
 let targetRpm = 30;
 let isDraggingHandle = false;
-let smoothedManualAngVel = 0; // 平滑后的手摇角速度
+let manualMeasuredRpm = 0;
 let lastMouseAngle = null;
-let lastMouseTime = performance.now();
+let lastMoveTime = performance.now();
 
-// 鼠标抓取手摇手柄
 viewport.addEventListener('mousedown', (e) => {
   if (isMotorOn || !activeInstance || !activeInstance.driveBody) return;
   const rect = viewport.getBoundingClientRect();
@@ -86,10 +85,10 @@ viewport.addEventListener('mousedown', (e) => {
   const db = activeInstance.driveBody;
 
   const dist = Math.hypot(mx - db.position.x, my - db.position.y);
-  if (dist >= 20 && dist <= 90) {
+  if (dist >= 15 && dist <= 95) {
     isDraggingHandle = true;
     lastMouseAngle = Math.atan2(my - db.position.y, mx - db.position.x);
-    lastMouseTime = performance.now();
+    lastMoveTime = performance.now();
   }
 });
 
@@ -102,40 +101,36 @@ window.addEventListener('mousemove', (e) => {
 
   const curAngle = Math.atan2(my - db.position.y, mx - db.position.x);
   const now = performance.now();
-  const dt = (now - lastMouseTime) / 1000;
+  const dt = (now - lastMoveTime) / 1000;
 
-  if (dt > 0.015) { // 降低高频采样抖动
+  if (dt > 0.01) {
     let dTheta = curAngle - lastMouseAngle;
     if (dTheta > Math.PI) dTheta -= Math.PI * 2;
     if (dTheta < -Math.PI) dTheta += Math.PI * 2;
 
-    const rawVel = dTheta / dt;
-    // 指数平滑滤波 (α = 0.25)，限制最大转速杜绝暴冲
-    smoothedManualAngVel = smoothedManualAngVel * 0.75 + rawVel * 0.25;
-    const clampedVel = Math.max(-12, Math.min(12, smoothedManualAngVel));
+    // 1:1 绝对角度跟手：直接让零件随光标转动，绝不注入过剩角速度
+    Body.setAngle(db, db.angle + dTheta);
+    Body.setAngularVelocity(db, 0);
 
-    Body.setAngle(db, db.angle + dTheta * 0.7); // 减弱直接角位移突变
-    Body.setAngularVelocity(db, clampedVel / 45);
+    // 测算手摇角速度供遥测显示 (平滑滤波)
+    const instantRpm = Math.abs(dTheta / dt) * 60 / (2 * Math.PI);
+    manualMeasuredRpm = manualMeasuredRpm * 0.7 + instantRpm * 0.3;
 
     lastMouseAngle = curAngle;
-    lastMouseTime = now;
+    lastMoveTime = now;
   }
 });
 
 window.addEventListener('mouseup', () => {
   isDraggingHandle = false;
+  manualMeasuredRpm = 0;
 });
 
-// 主运动循环与遥测更新
+// 主运动循环
 Matter.Events.on(engine, 'beforeUpdate', () => {
   if (isMotorOn && activeInstance && activeInstance.driveBody) {
     const targetAngVel = (targetRpm * 2 * Math.PI) / (60 * 60);
     Body.setAngularVelocity(activeInstance.driveBody, targetAngVel);
-  }
-
-  // 松手后平滑阻尼滑行制动
-  if (!isMotorOn && !isDraggingHandle) {
-    smoothedManualAngVel *= 0.88;
   }
 
   if (activeInstance && activeInstance.getTelemetry) {
@@ -147,15 +142,14 @@ Matter.Events.on(engine, 'beforeUpdate', () => {
       if (isMotorOn) {
         angEl.innerText = data.v1;
       } else {
-        const manRpm = Math.abs((smoothedManualAngVel * 60) / (2 * Math.PI)).toFixed(1);
-        angEl.innerText = `${manRpm} RPM (手摇)`;
+        angEl.innerText = `${manualMeasuredRpm.toFixed(1)} RPM (手摇)`;
       }
     }
     if (dispEl && data.v2) dispEl.innerText = data.v2;
   }
 });
 
-// 手摇手柄工业视觉渲染
+// 工业手柄叠加层渲染
 const canvas = document.querySelector('#viewport canvas');
 function renderManualHandle() {
   if (!isMotorOn && activeInstance && activeInstance.driveBody && canvas) {
@@ -184,7 +178,7 @@ function renderManualHandle() {
       ctx.lineTo(hx, hy);
       ctx.stroke();
 
-      // 握把旋钮
+      // 旋钮握把
       ctx.fillStyle = isDraggingHandle ? '#ffffff' : '#38bdf8';
       ctx.beginPath();
       ctx.arc(hx, hy, 8, 0, Math.PI * 2);
