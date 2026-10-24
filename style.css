@@ -1,0 +1,233 @@
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  background-color: #0c0d0e;
+  color: #d1d5db;
+  font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", ui-monospace, SFMono-Regular, Menlo, monospace;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  user-select: none;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* 顶部导航与状态栏 */
+header {
+  padding: 12px 20px;
+  border-bottom: 1px solid #1f2428;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 11px;
+  letter-spacing: 0.08em;
+}
+
+.header-left {
+  display: flex;
+  align-items: center;
+}
+
+.badge {
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  background: #10b981;
+  border-radius: 50%;
+  margin-right: 8px;
+}
+
+.header-right {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+#sysStatus {
+  color: #9ca3af;
+}
+
+/* 极简双语切换开关 */
+.lang-switch {
+  display: flex;
+  background: #15181c;
+  border: 1px solid #283039;
+  border-radius: 2px;
+  overflow: hidden;
+}
+
+.lang-btn {
+  background: transparent;
+  border: none;
+  color: #64748b;
+  padding: 4px 8px;
+  font-size: 10px;
+  font-family: inherit;
+  cursor: pointer;
+  letter-spacing: 0.05em;
+  transition: all 0.2s;
+}
+
+.lang-btn.active {
+  background: #e5e7eb;
+  color: #0c0d0e;
+  font-weight: 600;
+}
+
+/* 主体双栏布局 */
+#workspace {
+  flex: 1;
+  display: flex;
+  position: relative;
+  overflow: hidden;
+}
+
+/* 左侧控制台 */
+#sidebar {
+  width: 290px;
+  border-right: 1px solid #1f2428;
+  background: #0f1113;
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  z-index: 10;
+  overflow-y: auto;
+}
+
+.panel-section {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.panel-title {
+  font-size: 10px;
+  color: #6b7280;
+  letter-spacing: 0.08em;
+  border-bottom: 1px dashed #242b33;
+  padding-bottom: 4px;
+  font-weight: 500;
+}
+
+/* 机构选择器按钮组 */
+.preset-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  margin-top: 4px;
+}
+
+.btn-preset {
+  background: #14181c;
+  border: 1px solid #242c36;
+  color: #94a3b8;
+  padding: 8px 6px;
+  font-size: 11px;
+  font-family: inherit;
+  cursor: pointer;
+  letter-spacing: 0.02em;
+  text-align: center;
+  transition: all 0.2s;
+}
+
+.btn-preset.active {
+  background: #1e2631;
+  color: #f8fafc;
+  border-color: #475569;
+  font-weight: 600;
+}
+
+.control-row {
+  display: flex;
+  justify-content: space-between;
+  font-size: 12px;
+  margin-top: 4px;
+  color: #9ca3af;
+}
+
+/* 极简无衬线滑块 */
+input[type=range] {
+  -webkit-appearance: none;
+  width: 100%;
+  background: #1e252e;
+  height: 2px;
+  outline: none;
+  margin: 10px 0;
+}
+
+input[type=range]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 10px;
+  height: 10px;
+  background: #e5e7eb;
+  border-radius: 0;
+  cursor: pointer;
+}
+
+/* 动力开关按钮 */
+.btn-toggle {
+  background: #181c20;
+  border: 1px solid #2d3748;
+  color: #e5e7eb;
+  padding: 9px 12px;
+  font-size: 12px;
+  font-family: inherit;
+  cursor: pointer;
+  letter-spacing: 0.04em;
+  text-align: center;
+  transition: all 0.2s;
+}
+
+.btn-toggle.active {
+  background: #e5e7eb;
+  color: #0c0d0e;
+  border-color: #e5e7eb;
+  font-weight: 600;
+}
+
+/* 实时遥测读数网格 */
+.telemetry-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  margin-top: 6px;
+}
+
+.telemetry-item {
+  background: #14181c;
+  padding: 8px 10px;
+  border: 1px solid #1f262e;
+}
+
+.telemetry-item span {
+  display: block;
+  font-size: 10px;
+  color: #64748b;
+  margin-bottom: 2px;
+}
+
+.telemetry-item strong {
+  font-size: 13px;
+  color: #f1f5f9;
+  font-weight: 500;
+  font-family: ui-monospace, monospace;
+}
+
+/* 视口与底栏 */
+#viewport {
+  flex: 1;
+  width: 100%;
+  height: 100%;
+  position: relative;
+}
+
+footer {
+  padding: 12px 20px;
+  border-top: 1px solid #1f2428;
+  display: flex;
+  justify-content: space-between;
+  font-size: 11px;
+  color: #4b5563;
+  letter-spacing: 0.04em;
+}
