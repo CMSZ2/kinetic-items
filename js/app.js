@@ -27,7 +27,7 @@ Runner.run(runner, engine);
 const presets = {
   crankSlider: window.CrankSliderMechanism,
   fourBar: window.FourBarMechanism,
-  cam: window.CamFollowerMechanism
+  cam: window.CamFollowerMechanism,
   gear: window.GearSystemMechanism
 };
 
