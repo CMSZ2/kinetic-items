@@ -1,13 +1,13 @@
-// 全局调度总成：管理物理视口、机构动态切换、语言系统与动力驱动
+// 全局调度总成：管理 9 大机构生命周期、视口自适应、遥测读数与双语系统
 const { Engine, Render, Runner, Composite, Mouse, MouseConstraint, Body } = Matter;
 
 const viewport = document.getElementById('viewport');
 let width = viewport.clientWidth;
 let height = viewport.clientHeight;
 
-// 1. 初始化引擎与渲染
+// 1. 初始化引擎与渲染器
 const engine = Engine.create();
-engine.gravity.y = 0; // 平面机构运动
+engine.gravity.y = 0;
 
 const render = Render.create({
   element: viewport,
@@ -23,12 +23,17 @@ Render.run(render);
 const runner = Runner.create();
 Runner.run(runner, engine);
 
-// 2. 机构管理系统
+// 2. 机构总库字典 (9 大拓扑完整注册)
 const presets = {
   crankSlider: window.CrankSliderMechanism,
   fourBar: window.FourBarMechanism,
   cam: window.CamFollowerMechanism,
-  gear: window.GearSystemMechanism
+  gear: window.GearSystemMechanism,
+  geneva: window.GenevaDriveMechanism,
+  ratchet: window.RatchetPawlMechanism,
+  quickReturn: window.QuickReturnMechanism,
+  rackPinion: window.RackPinionMechanism,
+  planetary: window.PlanetaryGearsMechanism
 };
 
 let activePresetKey = 'crankSlider';
@@ -36,16 +41,25 @@ let activeInstance = null;
 let mouseConstraint = null;
 
 function loadMechanism(key) {
-  // 如果上一套机构有专有事件监听，先卸载清理
-  if (activeInstance && activeInstance.destroy) {
-    activeInstance.destroy();
+  if (!presets[key]) {
+    console.warn('Mechanism not registered:', key);
+    return;
   }
 
-  // 清理上一套机构
+  // 卸载上一机构的动画与事件
+  if (activeInstance && activeInstance.destroy) {
+    try {
+      activeInstance.destroy();
+    } catch (e) {
+      console.error(e);
+    }
+  }
+
+  // 清空刚体世界
   Composite.clear(engine.world, false);
   activePresetKey = key;
 
-  // 重新绑定鼠标
+  // 重新绑定鼠标约束
   const mouse = Mouse.create(render.canvas);
   mouseConstraint = MouseConstraint.create(engine, {
     mouse: mouse,
@@ -57,9 +71,12 @@ function loadMechanism(key) {
   // 初始化对应机构
   activeInstance = presets[key].init(engine, width, height);
 
-  // 同步刷新当前阻尼滑块值
-  const f = parseFloat(document.getElementById('frictionSlider').value);
-  activeInstance.bodiesToFriction.forEach(b => b.frictionAir = f);
+  // 同步当前阻尼值
+  const frictionSlider = document.getElementById('frictionSlider');
+  if (frictionSlider && activeInstance && activeInstance.bodiesToFriction) {
+    const f = parseFloat(frictionSlider.value);
+    activeInstance.bodiesToFriction.forEach(b => { if (b) b.frictionAir = f; });
+  }
 
   updateLanguage(currentLang);
 }
@@ -76,8 +93,10 @@ Matter.Events.on(engine, 'beforeUpdate', () => {
 
   if (activeInstance && activeInstance.getTelemetry) {
     const data = activeInstance.getTelemetry();
-    document.getElementById('angVel').innerText = data.v1;
-    document.getElementById('dispVal').innerText = data.v2;
+    const angEl = document.getElementById('angVel');
+    const dispEl = document.getElementById('dispVal');
+    if (angEl && data.v1) angEl.innerText = data.v1;
+    if (dispEl && data.v2) dispEl.innerText = data.v2;
   }
 });
 
@@ -85,7 +104,6 @@ Matter.Events.on(engine, 'beforeUpdate', () => {
 let currentLang = 'zh';
 const dict = {
   zh: {
-    resetBtn: '复位',
     subTitle: '机械动力学仿真沙盒',
     statusMotorOn: '状态: 动力源运行中 / 支持鼠标拖拽',
     statusMotorOff: '状态: 手动模式 / 按住构件拖动',
@@ -93,15 +111,14 @@ const dict = {
     sec1: '01 / 驱动单元',
     motorOn: '电机状态: 已接入驱动',
     motorOff: '电机状态: 空挡 (手动拨动)',
+    resetBtn: '复位',
     sec2: '02 / 运动学调节',
     rpm: '主动轮转速',
     friction: '系统阻尼 / 摩擦',
     sec3: '03 / 实时遥测数据',
     footerCore: '解算核心: 本地部署 MATTER.JS // 模块化驱动架构'
-    
   },
   en: {
-    resetBtn: 'RESET',
     subTitle: 'RIGID SIMULATION SUITE',
     statusMotorOn: 'SYS: EQUILIBRIUM ACTIVE / DRAG TO INTERACT',
     statusMotorOff: 'SYS: MANUAL MODE / DRAG COMPONENT',
@@ -109,6 +126,7 @@ const dict = {
     sec1: '01 / DRIVE UNIT',
     motorOn: 'MOTOR: ENGAGED',
     motorOff: 'MOTOR: DISENGAGED (MANUAL)',
+    resetBtn: 'RESET',
     sec2: '02 / KINEMATICS REGULATION',
     rpm: 'DRIVE SPEED',
     friction: 'SYSTEM DAMPING',
@@ -121,68 +139,78 @@ function updateLanguage(lang) {
   currentLang = lang;
   const t = dict[lang];
   const p = presets[activePresetKey];
-  document.getElementById('resetBtn').innerText = t.resetBtn;
 
-  document.getElementById('headerSub').innerText = t.subTitle;
-  document.getElementById('sysStatus').innerText = isMotorOn ? t.statusMotorOn : t.statusMotorOff;
-  document.getElementById('sec0Title').innerText = t.sec0;
-  document.getElementById('sec1Title').innerText = t.sec1;
-  document.getElementById('motorBtn').innerText = isMotorOn ? t.motorOn : t.motorOff;
-  document.getElementById('sec2Title').innerText = t.sec2;
-  document.getElementById('rpmLabel').innerText = t.rpm;
-  document.getElementById('frictionLabel').innerText = t.friction;
-  document.getElementById('sec3Title').innerText = t.sec3;
-  document.getElementById('footerCore').innerText = t.footerCore;
+  const setTxt = (id, txt) => {
+    const el = document.getElementById(id);
+    if (el) el.innerText = txt;
+  };
 
-  // 动态读取当前机构特定的术语
-  document.getElementById('angVelLabel').innerText = lang === 'zh' ? p.telemetryLabelsZh.m1 : p.telemetryLabelsEn.m1;
-  document.getElementById('dispLabel').innerText = lang === 'zh' ? p.telemetryLabelsZh.m2 : p.telemetryLabelsEn.m2;
-  document.getElementById('footerType').innerText = lang === 'zh' ? `机构形式: ${p.nameZh}` : `TYPE: ${p.nameEn}`;
+  setTxt('headerSub', t.subTitle);
+  setTxt('sysStatus', isMotorOn ? t.statusMotorOn : t.statusMotorOff);
+  setTxt('sec0Title', t.sec0);
+  setTxt('sec1Title', t.sec1);
+  setTxt('motorBtn', isMotorOn ? t.motorOn : t.motorOff);
+  setTxt('resetBtn', t.resetBtn);
+  setTxt('sec2Title', t.sec2);
+  setTxt('rpmLabel', t.rpm);
+  setTxt('frictionLabel', t.friction);
+  setTxt('sec3Title', t.sec3);
+  setTxt('footerCore', t.footerCore);
 
-  document.getElementById('langZh').classList.toggle('active', lang === 'zh');
-  document.getElementById('langEn').classList.toggle('active', lang === 'en');
+  if (p) {
+    setTxt('angVelLabel', lang === 'zh' ? p.telemetryLabelsZh?.m1 : p.telemetryLabelsEn?.m1);
+    setTxt('dispLabel', lang === 'zh' ? p.telemetryLabelsZh?.m2 : p.telemetryLabelsEn?.m2);
+    setTxt('footerType', lang === 'zh' ? `机构形式: ${p.nameZh}` : `TYPE: ${p.nameEn}`);
+  }
+
+  const zhBtn = document.getElementById('langZh');
+  const enBtn = document.getElementById('langEn');
+  if (zhBtn) zhBtn.classList.toggle('active', lang === 'zh');
+  if (enBtn) enBtn.classList.toggle('active', lang === 'en');
 }
 
-// 5. 事件绑定
-// 下拉选单切换机构
-const mechanismSelect = document.getElementById('mechanismSelect');
-mechanismSelect.addEventListener('change', (e) => {
-  loadMechanism(e.target.value);
-});
+// 5. 事件安全绑定
+const safeListen = (id, event, handler) => {
+  const el = document.getElementById(id);
+  if (el) el.addEventListener(event, handler);
+};
 
-document.getElementById('langZh').addEventListener('click', () => updateLanguage('zh'));
-document.getElementById('langEn').addEventListener('click', () => updateLanguage('en'));
+// 下拉选单切换
+safeListen('mechanismSelect', 'change', (e) => loadMechanism(e.target.value));
 
-const motorBtn = document.getElementById('motorBtn');
-motorBtn.addEventListener('click', () => {
+// 双语切换
+safeListen('langZh', 'click', () => updateLanguage('zh'));
+safeListen('langEn', 'click', () => updateLanguage('en'));
+
+// 动力与复位
+safeListen('motorBtn', 'click', () => {
   isMotorOn = !isMotorOn;
-  motorBtn.classList.toggle('active', isMotorOn);
+  const mBtn = document.getElementById('motorBtn');
+  if (mBtn) mBtn.classList.toggle('active', isMotorOn);
   updateLanguage(currentLang);
 });
 
-// 复位按钮：重新加载当前机构到初始几何姿态
-const resetBtn = document.getElementById('resetBtn');
-if (resetBtn) {
-  resetBtn.addEventListener('click', () => {
-    loadMechanism(activePresetKey);
-  });
-}
-
-const rpmSlider = document.getElementById('rpmSlider');
-rpmSlider.addEventListener('input', (e) => {
-  targetRpm = parseFloat(e.target.value);
-  document.getElementById('rpmVal').innerText = `${targetRpm} RPM`;
+safeListen('resetBtn', 'click', () => {
+  loadMechanism(activePresetKey);
 });
 
-const frictionSlider = document.getElementById('frictionSlider');
-frictionSlider.addEventListener('input', (e) => {
+// 滑块
+safeListen('rpmSlider', 'input', (e) => {
+  targetRpm = parseFloat(e.target.value);
+  const rpmEl = document.getElementById('rpmVal');
+  if (rpmEl) rpmEl.innerText = `${targetRpm} RPM`;
+});
+
+safeListen('frictionSlider', 'input', (e) => {
   const f = parseFloat(e.target.value);
   if (activeInstance && activeInstance.bodiesToFriction) {
-    activeInstance.bodiesToFriction.forEach(b => b.frictionAir = f);
+    activeInstance.bodiesToFriction.forEach(b => { if (b) b.frictionAir = f; });
   }
-  document.getElementById('frictionVal').innerText = f.toFixed(3);
+  const fEl = document.getElementById('frictionVal');
+  if (fEl) fEl.innerText = f.toFixed(3);
 });
 
+// 窗口 Resize
 window.addEventListener('resize', () => {
   width = viewport.clientWidth;
   height = viewport.clientHeight;
@@ -191,5 +219,5 @@ window.addEventListener('resize', () => {
   loadMechanism(activePresetKey);
 });
 
-// 初次加载默认机构
+// 默认加载
 loadMechanism('crankSlider');
