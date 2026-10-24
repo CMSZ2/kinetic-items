@@ -1,4 +1,4 @@
-// 全局调度总成：集成 1:1 绝对跟手工业手摇把手 (Precision Manual Crank) 与 9 大机构
+// 全局调度总成：集成 1:1 绝对跟手工业手摇把手 (Precision Manual Crank) 与 8 大机构
 const { Engine, Render, Runner, Composite, Mouse, MouseConstraint, Body } = Matter;
 
 const viewport = document.getElementById('viewport');
@@ -29,7 +29,6 @@ const presets = {
   fourBar: window.FourBarMechanism,
   cam: window.CamFollowerMechanism,
   gear: window.GearSystemMechanism,
-  geneva: window.GenevaDriveMechanism,
   ratchet: window.RatchetPawlMechanism,
   quickReturn: window.QuickReturnMechanism,
   rackPinion: window.RackPinionMechanism,
